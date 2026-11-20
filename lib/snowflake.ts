@@ -16,7 +16,7 @@ function config(role: string): snowflake.ConnectionOptions {
     account: process.env.SNOWFLAKE_ACCOUNT!,
     username: process.env.SNOWFLAKE_USERNAME!,
     role,
-    warehouse: process.env.SNOWFLAKE_WAREHOUSE ?? 'USI_WH',
+    warehouse: process.env.SNOWFLAKE_WAREHOUSE ?? 'QUORVANE_WH',
     database: process.env.SNOWFLAKE_DATABASE ?? 'UNDERWRITING_SUBMISSION_DEMO',
     schema: 'UW',
     clientSessionKeepAlive: true,
@@ -45,7 +45,7 @@ function run<T>(conn: snowflake.Connection, sqlText: string, binds?: snowflake.B
   });
 }
 
-export const ROLE = process.env.SNOWFLAKE_ROLE ?? 'USI_DEMO_ROLE';
+export const ROLE = process.env.SNOWFLAKE_ROLE ?? 'QUORVANE_DEMO_ROLE';
 
 export async function query<T = Record<string, unknown>>(sqlText: string, binds?: snowflake.Binds, role: string = ROLE): Promise<T[]> {
   return queryAs<T>(role, sqlText, binds);

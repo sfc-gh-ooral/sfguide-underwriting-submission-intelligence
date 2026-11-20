@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved theme before paint so the page does not flash.
-const THEME = `try{var t=localStorage.getItem('usi-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}`;
+const THEME = `try{var t=localStorage.getItem('quorvane-theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -65,7 +65,7 @@ export function ModeChip() {
                 </ol>
                 <pre className="text-xs rounded-lg p-3 mb-3 overflow-x-auto" style={{ background: 'var(--sheet-2)' }}>{`SNOWFLAKE_ACCOUNT=<orgname>-<account_name>
 SNOWFLAKE_USERNAME=<YOUR_USER>
-SNOWFLAKE_PRIVATE_KEY_PATH=/absolute/path/to/usi_rsa_key.p8`}</pre>
+SNOWFLAKE_PRIVATE_KEY_PATH=/absolute/path/to/quorvane_rsa_key.p8`}</pre>
                 <p className="text-sm text-ink-2">Then restart with <code>npm run dev</code> and switch to Live.{' '}
                   <a className="underline" href={`${REPO}#live-mode-deploy-to-your-account`} target="_blank" rel="noreferrer">Full guide</a></p>
               </>

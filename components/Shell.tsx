@@ -11,7 +11,7 @@ import { ModeChip } from '@/components/ModeChip';
 import { HOSTED_EXAMPLE } from '@/lib/hosted';
 
 export const REPO = 'https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence';
-const LAST = 'usi-last-submission';
+const LAST = 'quorvane-last-submission';
 export const DEFAULT_SUBMISSION = 'SUB-1004';
 export const BUSINESS_DATE = '18 Nov 2026';
 export const rememberSubmission = (id: string) => window.localStorage.setItem(LAST, id);
@@ -20,7 +20,7 @@ export const lastSubmission = () => (typeof window === 'undefined' ? DEFAULT_SUB
 function ThemeToggle() {
   const [dark, setDark] = useState(false);
   useEffect(() => setDark(document.documentElement.dataset.theme === 'dark'), []);
-  const flip = () => { const t = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = t; window.localStorage.setItem('usi-theme', t); setDark(!dark); };
+  const flip = () => { const t = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = t; window.localStorage.setItem('quorvane-theme', t); setDark(!dark); };
   return (
     <button onClick={flip} className="w-8 h-8 inline-flex items-center justify-center rounded-lg hover:bg-white/10" style={{ color: 'var(--bar-text)' }} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>
       {dark ? <Sun className="w-4 h-4" aria-hidden /> : <Moon className="w-4 h-4" aria-hidden />}

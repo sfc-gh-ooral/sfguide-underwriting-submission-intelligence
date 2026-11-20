@@ -8,10 +8,10 @@
 -- (or cross-region inference enabled). Any edition. All data is synthetic.
 --
 -- Creates (and changes nothing that already exists):
---   role        USI_DEMO_ROLE (least privilege: owns only the objects below)
---   warehouse   USI_WH (XSMALL, AUTO_SUSPEND = 60)
+--   role        QUORVANE_DEMO_ROLE (least privilege: owns only the objects below)
+--   warehouse   QUORVANE_WH (XSMALL, AUTO_SUSPEND = 60)
 --   database    UNDERWRITING_SUBMISSION_DEMO (schemas UW and APP)
---   integration USI_GIT_API (read-only access to the public example repository)
+--   integration QUORVANE_GIT_API (read-only access to the public example repository)
 -- Remove everything with sql/cleanup.sql.
 -- =============================================================================
 
@@ -19,54 +19,54 @@
 USE ROLE ACCOUNTADMIN;
 SET my_user = CURRENT_USER();
 
-CREATE ROLE IF NOT EXISTS USI_DEMO_ROLE COMMENT = 'Underwriting Submission Intelligence example (synthetic data)';
-GRANT ROLE USI_DEMO_ROLE TO ROLE SYSADMIN;
-GRANT ROLE USI_DEMO_ROLE TO USER IDENTIFIER($my_user);
+CREATE ROLE IF NOT EXISTS QUORVANE_DEMO_ROLE COMMENT = 'Underwriting Submission Intelligence example (synthetic data)';
+GRANT ROLE QUORVANE_DEMO_ROLE TO ROLE SYSADMIN;
+GRANT ROLE QUORVANE_DEMO_ROLE TO USER IDENTIFIER($my_user);
 
-CREATE WAREHOUSE IF NOT EXISTS USI_WH
+CREATE WAREHOUSE IF NOT EXISTS QUORVANE_WH
   WAREHOUSE_SIZE = XSMALL AUTO_SUSPEND = 60 AUTO_RESUME = TRUE INITIALLY_SUSPENDED = TRUE
   COMMENT = 'Underwriting Submission Intelligence example';
-GRANT OWNERSHIP ON WAREHOUSE USI_WH TO ROLE USI_DEMO_ROLE;
+GRANT OWNERSHIP ON WAREHOUSE QUORVANE_WH TO ROLE QUORVANE_DEMO_ROLE;
 
 CREATE DATABASE IF NOT EXISTS UNDERWRITING_SUBMISSION_DEMO COMMENT = 'Underwriting Submission Intelligence example (synthetic data)';
-GRANT OWNERSHIP ON DATABASE UNDERWRITING_SUBMISSION_DEMO TO ROLE USI_DEMO_ROLE;
+GRANT OWNERSHIP ON DATABASE UNDERWRITING_SUBMISSION_DEMO TO ROLE QUORVANE_DEMO_ROLE;
 
 -- Cortex AI functions, Cortex Search, Cortex Analyst, and Cortex Agents.
-GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE USI_DEMO_ROLE;
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE QUORVANE_DEMO_ROLE;
 
 -- Read-only access to the public GitHub repository that holds the synthetic files.
-CREATE API INTEGRATION IF NOT EXISTS USI_GIT_API
+CREATE API INTEGRATION IF NOT EXISTS QUORVANE_GIT_API
   API_PROVIDER = git_https_api
   API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-ooral/')
   ENABLED = TRUE
   COMMENT = 'Underwriting Submission Intelligence example: public repository, no secret';
-GRANT USAGE ON INTEGRATION USI_GIT_API TO ROLE USI_DEMO_ROLE;
+GRANT USAGE ON INTEGRATION QUORVANE_GIT_API TO ROLE QUORVANE_DEMO_ROLE;
 
 -- Everything below runs as the least-privilege role.
-USE ROLE USI_DEMO_ROLE;
-USE WAREHOUSE USI_WH;
+USE ROLE QUORVANE_DEMO_ROLE;
+USE WAREHOUSE QUORVANE_WH;
 USE DATABASE UNDERWRITING_SUBMISSION_DEMO;
 CREATE SCHEMA IF NOT EXISTS UW  COMMENT = 'Submissions, documents, extraction, scoring';
 CREATE SCHEMA IF NOT EXISTS APP COMMENT = 'Underwriter decisions and AI drafts written by the app';
 USE SCHEMA UW;
 
 -- 2. Load synthetic files from the repository ----------------------------------
-CREATE OR REPLACE GIT REPOSITORY USI_REPO
-  API_INTEGRATION = USI_GIT_API
+CREATE OR REPLACE GIT REPOSITORY QUORVANE_REPO
+  API_INTEGRATION = QUORVANE_GIT_API
   ORIGIN = 'https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence.git';
 
-CREATE STAGE IF NOT EXISTS USI_DATA COMMENT = 'Synthetic CSVs (brokers, appetite guide, SOVs, portfolio)';
-COPY FILES INTO @USI_DATA FROM @USI_REPO/branches/main/data/csv/;
+CREATE STAGE IF NOT EXISTS QUORVANE_DATA COMMENT = 'Synthetic CSVs (brokers, appetite guide, SOVs, portfolio)';
+COPY FILES INTO @QUORVANE_DATA FROM @QUORVANE_REPO/branches/main/data/csv/;
 
 -- Broker submission documents: one application PDF and one loss run PDF per submission.
 -- Server-side encryption and a directory table are required for the AI file functions.
 CREATE STAGE IF NOT EXISTS SUBMISSION_DOCS
   DIRECTORY = (ENABLE = TRUE) ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
   COMMENT = 'Synthetic broker submission PDFs';
-COPY FILES INTO @SUBMISSION_DOCS FROM @USI_REPO/branches/main/data/docs/;
+COPY FILES INTO @SUBMISSION_DOCS FROM @QUORVANE_REPO/branches/main/data/docs/;
 ALTER STAGE SUBMISSION_DOCS REFRESH;
 
-CREATE OR REPLACE FILE FORMAT USI_CSV TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"' COMPRESSION = GZIP;
+CREATE OR REPLACE FILE FORMAT QUORVANE_CSV TYPE = CSV SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"' COMPRESSION = GZIP;
 
 CREATE OR REPLACE TABLE BROKERS (broker_id STRING, broker_name STRING, tier STRING, region STRING, ytd_written_premium NUMBER(14,0), hit_ratio NUMBER(5,3));
 CREATE OR REPLACE TABLE APPETITE_GUIDE (rule_id STRING, section STRING, class_code STRING, rule_type STRING, appetite STRING, max_tiv NUMBER(14,0), territory STRING, guidance_text STRING);
@@ -85,16 +85,16 @@ CREATE OR REPLACE TABLE COASTLINE_POINTS (point_id NUMBER, latitude FLOAT, longi
 -- The generator's own loss values, kept only to measure extraction accuracy (see README).
 CREATE OR REPLACE TABLE LOSS_RUNS_KEYED (submission_id STRING, year NUMBER, carrier STRING, claims NUMBER, incurred NUMBER(12,0), paid NUMBER(12,0), open NUMBER, largest STRING);
 
-COPY INTO BROKERS            FROM @USI_DATA/brokers.csv.gz            FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO APPETITE_GUIDE     FROM @USI_DATA/appetite_guide.csv.gz     FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO SUBMISSIONS        FROM @USI_DATA/submissions.csv.gz        FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO SOV_LOCATIONS      FROM @USI_DATA/sov_locations.csv.gz      FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO BROKER_EMAILS      FROM @USI_DATA/broker_emails.csv.gz      FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO BOUND_POLICIES     FROM @USI_DATA/bound_policies.csv.gz     FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO PORTFOLIO_EXPOSURE FROM @USI_DATA/portfolio_exposure.csv.gz FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO QUOTES             FROM @USI_DATA/quotes.csv.gz             FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO COASTLINE_POINTS   FROM @USI_DATA/coastline_points.csv.gz   FILE_FORMAT = (FORMAT_NAME = USI_CSV);
-COPY INTO LOSS_RUNS_KEYED    FROM @USI_DATA/loss_runs_keyed.csv.gz    FILE_FORMAT = (FORMAT_NAME = USI_CSV);
+COPY INTO BROKERS            FROM @QUORVANE_DATA/brokers.csv.gz            FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO APPETITE_GUIDE     FROM @QUORVANE_DATA/appetite_guide.csv.gz     FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO SUBMISSIONS        FROM @QUORVANE_DATA/submissions.csv.gz        FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO SOV_LOCATIONS      FROM @QUORVANE_DATA/sov_locations.csv.gz      FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO BROKER_EMAILS      FROM @QUORVANE_DATA/broker_emails.csv.gz      FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO BOUND_POLICIES     FROM @QUORVANE_DATA/bound_policies.csv.gz     FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO PORTFOLIO_EXPOSURE FROM @QUORVANE_DATA/portfolio_exposure.csv.gz FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO QUOTES             FROM @QUORVANE_DATA/quotes.csv.gz             FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO COASTLINE_POINTS   FROM @QUORVANE_DATA/coastline_points.csv.gz   FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
+COPY INTO LOSS_RUNS_KEYED    FROM @QUORVANE_DATA/loss_runs_keyed.csv.gz    FILE_FORMAT = (FORMAT_NAME = QUORVANE_CSV);
 
 -- Business clock, frozen so "this month" and days-waiting match the sample data.
 CREATE OR REPLACE TABLE CONFIG (business_date DATE);
@@ -264,7 +264,7 @@ FROM pts;
 CREATE OR REPLACE CORTEX SEARCH SERVICE APPETITE_SEARCH
   ON guidance_text
   ATTRIBUTES section, class_code, appetite
-  WAREHOUSE = USI_WH
+  WAREHOUSE = QUORVANE_WH
   TARGET_LAG = '1 day'
   AS SELECT rule_id, section, class_code, appetite, guidance_text FROM APPETITE_GUIDE;
 
@@ -329,7 +329,7 @@ CREATE OR REPLACE AGENT SUBMISSION_ASSISTANT
       semantic_view: "UNDERWRITING_SUBMISSION_DEMO.UW.SUBMISSIONS_SV"
       execution_environment:
         type: "warehouse"
-        warehouse: "USI_WH"
+        warehouse: "QUORVANE_WH"
     appetite_guide:
       name: "UNDERWRITING_SUBMISSION_DEMO.UW.APPETITE_SEARCH"
       max_results: 4

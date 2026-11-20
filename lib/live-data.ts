@@ -104,7 +104,7 @@ export const liveData: UwData = {
         locations: locs.map(toLoc),
         email: { from: String(e.FROM_NAME ?? ''), subject: String(e.SUBJECT ?? ''), body: String(e.BODY ?? ''), sentAt: e.SENT_AT ? ts(e.SENT_AT) : '' },
         guide,
-        decisions: decisions.map((d) => ({ decision: String(d.DECISION), reason: String(d.REASON), at: ts(d.DECIDED_AT), by: 'you (USI_DEMO_ROLE)' })),
+        decisions: decisions.map((d) => ({ decision: String(d.DECISION), reason: String(d.REASON), at: ts(d.DECIDED_AT), by: 'you (QUORVANE_DEMO_ROLE)' })),
       };
     });
     return res && { ...res, source: 'snowflake', role: ROLE, latencyMs };
@@ -191,6 +191,6 @@ export const liveData: UwData = {
         if (rs?.data) { columns = rs.resultSetMetaData?.rowType?.map((x) => x.name); out = rs.data.slice(0, 50); }
       }
     }
-    return { text: text || '(No text in agent response.)', sql, columns, rows: out, sources: [...sources].map((s) => (s === 'submissions' ? 'Cortex Analyst: SUBMISSIONS_SV' : s === 'appetite_guide' ? 'Cortex Search: APPETITE_SEARCH' : s === 'system_execute_sql' ? 'SQL on USI_WH' : s)), source: 'snowflake', role: ROLE, latencyMs };
+    return { text: text || '(No text in agent response.)', sql, columns, rows: out, sources: [...sources].map((s) => (s === 'submissions' ? 'Cortex Analyst: SUBMISSIONS_SV' : s === 'appetite_guide' ? 'Cortex Search: APPETITE_SEARCH' : s === 'system_execute_sql' ? 'SQL on QUORVANE_WH' : s)), source: 'snowflake', role: ROLE, latencyMs };
   },
 };

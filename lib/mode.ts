@@ -1,7 +1,7 @@
 // The user's Live/Sample choice, kept in the browser. Live is only used when the server has a
 // Snowflake connection; choosing Sample keeps the bundled data even when one exists.
 export type Mode = 'live' | 'sample';
-const KEY = 'usi-mode';
+const KEY = 'quorvane-mode';
 
 export function preferSample(): boolean {
   return typeof window !== 'undefined' && window.localStorage.getItem(KEY) === 'sample';

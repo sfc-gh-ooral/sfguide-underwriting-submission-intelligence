@@ -27,7 +27,7 @@ const STEPS: Record<ReasoningKind, string[]> = {
   ask: [
     'Planning with the Cortex Agent',
     'Generating SQL with Cortex Analyst on SUBMISSIONS_SV',
-    'Running the query on USI_WH',
+    'Running the query on QUORVANE_WH',
     'Composing the answer',
   ],
 };

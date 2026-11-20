@@ -6,7 +6,7 @@ import { SAMPLE_DELAY_MS } from './sample-timing';
 import type { AiText, AskAnswer, Decision, Detail, Portfolio, Queue, UwData } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-const DECISIONS_KEY = 'usi-sample-decisions';
+const DECISIONS_KEY = 'quorvane-sample-decisions';
 const cache = new Map<string, Promise<unknown>>();
 
 function get<T>(path: string): Promise<T> {

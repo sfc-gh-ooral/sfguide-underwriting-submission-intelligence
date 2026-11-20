@@ -36,7 +36,7 @@ See [data/README.md](data/README.md) for how the data and stories are generated.
 | No-account mode | Node.js **20.19+ or 22.12+** (required by Tailwind CSS 4) and npm. Nothing else. |
 | Live mode: edition | Any edition. No Enterprise-only features are used. |
 | Live mode: features | Cortex AI functions (`AI_PARSE_DOCUMENT`, `AI_EXTRACT`, `AI_CLASSIFY`, `AI_COMPLETE`), Cortex Search, Cortex Analyst, Cortex Agents, semantic views, and Git repository clones, available in your region or through [cross-region inference](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cross-region-inference). The default model for drafts is `claude-sonnet-4-5`; set `SNOWFLAKE_COMPLETE_MODEL` to use another. |
-| Live mode: role | `ACCOUNTADMIN` (or a role that can create roles, warehouses, databases, and API integrations) for the short first block of `sql/setup.sql`. Everything else runs as the least-privilege `USI_DEMO_ROLE`. |
+| Live mode: role | `ACCOUNTADMIN` (or a role that can create roles, warehouses, databases, and API integrations) for the short first block of `sql/setup.sql`. Everything else runs as the least-privilege `QUORVANE_DEMO_ROLE`. |
 | Preview features | None. Everything used here was generally available when tested (November 2026). |
 | Tested | Next.js 16.3, Node 22.23, snowflake-sdk 3.4, on an AWS US account, November 2026 |
 
@@ -56,12 +56,12 @@ To regenerate the synthetic data and documents (same seed, same files): `npm run
 ## Live mode: deploy to your account
 
 1. **Run the setup.** Open a Snowsight SQL worksheet, paste [`sql/setup.sql`](sql/setup.sql), and run all. It loads the synthetic PDFs and CSVs straight from this public repository through a Git repository clone, so there's no upload step, and then runs the document AI over all 299 PDFs. It took 3 minutes 6 seconds (186 s) in our latest test.
-2. **Create a key pair** for the user that ran setup (setup grants that user `USI_DEMO_ROLE`). Keep the key outside the repository:
+2. **Create a key pair** for the user that ran setup (setup grants that user `QUORVANE_DEMO_ROLE`). Keep the key outside the repository:
 
    ```bash
    mkdir -p ~/.snowflake/keys
-   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.snowflake/keys/usi_rsa_key.p8 -nocrypt
-   openssl rsa -in ~/.snowflake/keys/usi_rsa_key.p8 -pubout
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.snowflake/keys/quorvane_rsa_key.p8 -nocrypt
+   openssl rsa -in ~/.snowflake/keys/quorvane_rsa_key.p8 -pubout
    ```
 
    ```sql
@@ -70,9 +70,9 @@ To regenerate the synthetic data and documents (same seed, same files): `npm run
    ```
 
 3. **Configure the app.** Copy `.env.example` to `.env.local` and fill in your account identifier (`<org>-<account>`), user, and key path.
-4. **Run it.** Run `npm run dev`. Each screen shows a **Live · USI_DEMO_ROLE · <ms>** badge. Decisions go to `APP.DECISIONS` and AI drafts to `APP.AI_DRAFTS`.
+4. **Run it.** Run `npm run dev`. Each screen shows a **Live · QUORVANE_DEMO_ROLE · <ms>** badge. Decisions go to `APP.DECISIONS` and AI drafts to `APP.AI_DRAFTS`.
 
-The app connects as `USI_DEMO_ROLE`, runs `USE SECONDARY ROLES NONE`, and uses bind variables for every statement.
+The app connects as `QUORVANE_DEMO_ROLE`, runs `USE SECONDARY ROLES NONE`, and uses bind variables for every statement.
 
 To refresh the Sample-mode files from your own Live run: start `npm run dev` with `.env.local`, then run `npm run capture-sample -- http://localhost:3000` (it drafts a memo and an email for every open submission, so it uses AI credits).
 
@@ -80,11 +80,11 @@ To refresh the Sample-mode files from your own Live run: start `npm run dev` wit
 
 | Object | Name | Notes |
 | --- | --- | --- |
-| Role | `USI_DEMO_ROLE` | Owns everything below; granted `SNOWFLAKE.CORTEX_USER` |
-| Warehouse | `USI_WH` | XSMALL, `AUTO_SUSPEND = 60`, starts suspended |
+| Role | `QUORVANE_DEMO_ROLE` | Owns everything below; granted `SNOWFLAKE.CORTEX_USER` |
+| Warehouse | `QUORVANE_WH` | XSMALL, `AUTO_SUSPEND = 60`, starts suspended |
 | Database | `UNDERWRITING_SUBMISSION_DEMO` | Schemas `UW` and `APP` |
-| Integration | `USI_GIT_API` | `git_https_api`, limited to `https://github.com/sfc-gh-ooral/`, no credentials |
-| Git clone and stages | `USI_REPO`, `USI_DATA`, `SUBMISSION_DOCS` | `SUBMISSION_DOCS` has a directory table and server-side encryption for the AI file functions |
+| Integration | `QUORVANE_GIT_API` | `git_https_api`, limited to `https://github.com/sfc-gh-ooral/`, no credentials |
+| Git clone and stages | `QUORVANE_REPO`, `QUORVANE_DATA`, `SUBMISSION_DOCS` | `SUBMISSION_DOCS` has a directory table and server-side encryption for the AI file functions |
 | Source tables (UW) | `SUBMISSIONS`, `SOV_LOCATIONS`, `BROKER_EMAILS`, `BROKERS`, `APPETITE_GUIDE`, `BOUND_POLICIES`, `PORTFOLIO_EXPOSURE`, `QUOTES`, `COASTLINE_POINTS`, `LOSS_RUNS_KEYED`, `CONFIG` | Synthetic; `CONFIG` freezes the business date at 2026-11-18 |
 | Document AI tables | `DOC_TEXT`, `APP_EXTRACT`, `LOSS_EXTRACT`, `CLASS_PREDICTIONS` | Outputs of `AI_PARSE_DOCUMENT`, `AI_EXTRACT`, and `AI_CLASSIFY` |
 | Views and tables | `LOSS_RUNS`, `LOCATION_EXPOSURE`, `PORTFOLIO_CELLS`, `SUBMISSION_SCORES` | Flattened loss runs, geospatial exposure, appetite rules, and the fit score |
@@ -93,7 +93,7 @@ To refresh the Sample-mode files from your own Live run: start `npm run dev` wit
 | Cortex Agent | `SUBMISSION_ASSISTANT` | Tools: Cortex Analyst on `SUBMISSIONS_SV`, Cortex Search on `APPETITE_SEARCH` |
 | App tables | `APP.DECISIONS`, `APP.AI_DRAFTS` | Underwriter decisions and every AI draft with prompt, model, sources, and latency |
 
-**Cleanup:** run [`sql/cleanup.sql`](sql/cleanup.sql). It drops the database and warehouse as `USI_DEMO_ROLE` (which owns them), then the integration and the role as `ACCOUNTADMIN`. If you registered a key for this example, also run `ALTER USER <YOUR_USER> UNSET RSA_PUBLIC_KEY_2;`.
+**Cleanup:** run [`sql/cleanup.sql`](sql/cleanup.sql). It drops the database and warehouse as `QUORVANE_DEMO_ROLE` (which owns them), then the integration and the role as `ACCOUNTADMIN`. If you registered a key for this example, also run `ALTER USER <YOUR_USER> UNSET RSA_PUBLIC_KEY_2;`.
 
 ### Expected cost and time
 
@@ -147,7 +147,7 @@ components/          Shell (top bar, tabs, environment badge, theme), Brand (log
 lib/types.ts         Data interface used by every screen
 lib/mock-data.ts     Sample mode: captured results, in the browser (also the hosted /try/ example)
 lib/live-data.ts     Live mode: Snowflake queries and AI calls (server only)
-lib/snowflake.ts     Connection as USI_DEMO_ROLE, bind variables
+lib/snowflake.ts     Connection as QUORVANE_DEMO_ROLE, bind variables
 scripts/             generate-data.mjs (seeded data and PDFs), capture-sample.mjs, build-hosted-example.mjs, capture-screenshots.mjs
 sql/                 setup.sql, cleanup.sql
 data/                Synthetic CSVs, PDFs, and the data README
