@@ -7,8 +7,7 @@ snowflake.configure({ logLevel: 'ERROR' });
 const pool = new Map<string, Promise<snowflake.Connection>>();
 
 export function isSnowflakeConfigured(): boolean {
-  return !!(process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USERNAME &&
-    (process.env.SNOWFLAKE_PRIVATE_KEY_PATH || process.env.SNOWFLAKE_TOKEN || process.env.SNOWFLAKE_BROWSER_AUTH === 'true'));
+  return !!(process.env.SNOWFLAKE_ACCOUNT && process.env.SNOWFLAKE_USERNAME && process.env.SNOWFLAKE_PRIVATE_KEY_PATH);
 }
 
 function config(role: string): snowflake.ConnectionOptions {
@@ -21,18 +20,15 @@ function config(role: string): snowflake.ConnectionOptions {
     schema: 'UW',
     clientSessionKeepAlive: true,
   };
-  // Key-pair auth is recommended. A programmatic access token or browser SSO also work for local testing.
-  if (process.env.SNOWFLAKE_PRIVATE_KEY_PATH) return { ...base, authenticator: 'SNOWFLAKE_JWT', privateKeyPath: process.env.SNOWFLAKE_PRIVATE_KEY_PATH };
-  if (process.env.SNOWFLAKE_TOKEN) return { ...base, authenticator: 'PROGRAMMATIC_ACCESS_TOKEN', token: process.env.SNOWFLAKE_TOKEN };
-  return { ...base, authenticator: 'EXTERNALBROWSER' };
+  // Key-pair auth only.
+  return { ...base, authenticator: 'SNOWFLAKE_JWT', privateKeyPath: process.env.SNOWFLAKE_PRIVATE_KEY_PATH! };
 }
 
 async function connect(role: string): Promise<snowflake.Connection> {
   const conn = snowflake.createConnection(config(role));
   await new Promise<void>((resolve, reject) => {
     const cb = (err: snowflake.SnowflakeError | undefined) => (err ? reject(err) : resolve());
-    if (process.env.SNOWFLAKE_BROWSER_AUTH === 'true' && !process.env.SNOWFLAKE_PRIVATE_KEY_PATH && !process.env.SNOWFLAKE_TOKEN) conn.connectAsync(cb);
-    else conn.connect(cb);
+    conn.connect(cb);
   });
   // Only the pack role counts: no secondary roles.
   await run(conn, 'USE SECONDARY ROLES NONE');

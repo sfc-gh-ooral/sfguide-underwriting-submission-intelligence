@@ -72,7 +72,7 @@ To regenerate the synthetic data and documents (same seed, same files): `npm run
 3. **Configure the app.** Copy `.env.example` to `.env.local` and fill in your account identifier (`<org>-<account>`), user, and key path.
 4. **Run it.** Run `npm run dev`. Each screen shows a **Live · QUORVANE_DEMO_ROLE · <ms>** badge. Decisions go to `APP.DECISIONS` and AI drafts to `APP.AI_DRAFTS`.
 
-The app connects as `QUORVANE_DEMO_ROLE`, runs `USE SECONDARY ROLES NONE`, and uses bind variables for every statement.
+The app connects as `QUORVANE_DEMO_ROLE` with key-pair (JWT) authentication only (no SSO or token paths), runs `USE SECONDARY ROLES NONE`, and uses bind variables for every statement.
 
 To refresh the Sample-mode files from your own Live run: start `npm run dev` with `.env.local`, then run `npm run capture-sample -- http://localhost:3000` (it drafts a memo and an email for every open submission, so it uses AI credits).
 
