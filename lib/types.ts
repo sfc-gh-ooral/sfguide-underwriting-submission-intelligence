@@ -46,6 +46,18 @@ export interface Portfolio extends Provenance {
 export interface AiText extends Provenance { text: string; model?: string; sources: string[] }
 export interface AskAnswer extends Provenance { text: string; sql?: string; columns?: string[]; rows?: (string | number | null)[][]; sources: string[] }
 
+// "Re-check" on the submission file: the document AI and the proximity check run again, live.
+export interface RecheckField { key: string; label: string; value: string; stored: string }
+export interface RecheckLocation { loc: number; city: string; state: string; nearbyPolicies: number; nearbyTiv: number; storedNearbyTiv: number }
+export interface Recheck extends Provenance {
+  parsedChars: number; storedParsedChars: number;
+  fields: RecheckField[];
+  predictedClass: string; storedClass: string; declaredClass: string;
+  appetite: string; className: string; maxTiv: number | null;
+  locations: RecheckLocation[];
+  timings?: { parse: number; extract: number; classify: number; proximity: number };
+}
+
 export interface UwData {
   queue(): Promise<Queue>;
   detail(id: string): Promise<Detail | null>;
@@ -54,4 +66,5 @@ export interface UwData {
   brokerEmail(id: string): Promise<AiText>;
   decide(id: string, decision: 'REQUEST_INFO' | 'DECLINE' | 'QUOTE', reason: string): Promise<{ ok: true } & Provenance>;
   ask(question: string): Promise<AskAnswer>;
+  recheck(id: string): Promise<Recheck | null>;
 }

@@ -1,7 +1,7 @@
 // Live mode: every screen reads the objects that sql/setup.sql builds. Server only.
 // All values go through bind variables; nothing user-supplied is concatenated into SQL.
 import { query, ROLE } from './snowflake';
-import type { AiText, AskAnswer, Box, Detail, ExtractedField, GuideHit, Location, Portfolio, Queue, QueueRow, UwData } from './types';
+import type { AiText, AskAnswer, Box, Detail, Recheck, ExtractedField, GuideHit, Location, Portfolio, Queue, QueueRow, UwData } from './types';
 
 type Row = Record<string, unknown>;
 const MODEL = process.env.SNOWFLAKE_COMPLETE_MODEL ?? 'claude-sonnet-4-5';
@@ -193,4 +193,67 @@ export const liveData: UwData = {
     }
     return { text: text || '(No text in agent response.)', sql, columns, rows: out, sources: [...sources].map((s) => (s === 'submissions' ? 'Cortex Analyst: SUBMISSIONS_SV' : s === 'appetite_guide' ? 'Cortex Search: APPETITE_SEARCH' : s === 'system_execute_sql' ? 'SQL on QUORVANE_WH' : s)), source: 'snowflake', role: ROLE, latencyMs };
   },
+
+  // Runs the document AI and the proximity check again on this submission, live, and compares the
+  // results with what setup stored. The class list matches sql/setup.sql section 3d; AI_CLASSIFY needs
+  // it as a constant, so only the operations text is bound.
+  async recheck(id): Promise<Recheck | null> {
+    const [res, latencyMs] = await timed(async () => {
+      const [score, stored, text, locs] = await Promise.all([
+        query<Row>('SELECT declared_class, predicted_class FROM UW.SUBMISSION_SCORES WHERE submission_id = ?', [id]),
+        query<Row>('SELECT result FROM UW.APP_EXTRACT WHERE submission_id = ?', [id]),
+        query<Row>('SELECT LENGTH(content) AS N FROM UW.DOC_TEXT WHERE submission_id = ?', [id]),
+        query<Row>('SELECT loc_no, city, state, nearby_tiv FROM UW.LOCATION_EXPOSURE WHERE submission_id = ? ORDER BY loc_no', [id]),
+      ]);
+      if (!score.length) return null;
+      const file = `${id}_application.pdf`;
+      const [[parsed, tParse], [ext, tExtract], [near, tProx]] = await Promise.all([
+        timed(() => query<Row>(`SELECT LENGTH(AI_PARSE_DOCUMENT(TO_FILE('@UW.SUBMISSION_DOCS', ?), {'mode': 'OCR'}):content::STRING) AS N`, [file])),
+        timed(() => query<Row>(`SELECT AI_EXTRACT(file => TO_FILE('@UW.SUBMISSION_DOCS', ?), responseFormat => {
+            'declared_business_type': 'What is the business type as declared?',
+            'operations': 'What is the full nature of operations / description of business?',
+            'location_count': 'What is the number of locations?',
+            'total_tiv': 'What is the total insured value?'}) AS R`, [file])),
+        timed(() => query<Row>(`SELECT l.loc_no, COUNT(p.policy_id) AS N, COALESCE(SUM(p.tiv), 0) AS TIV
+            FROM UW.SOV_LOCATIONS l LEFT JOIN UW.PORTFOLIO_EXPOSURE p
+              ON ST_DWITHIN(ST_MAKEPOINT(l.longitude, l.latitude), ST_MAKEPOINT(p.longitude, p.latitude), 25000)
+            WHERE l.submission_id = ? GROUP BY l.loc_no ORDER BY l.loc_no`, [id])),
+      ]);
+      const fresh = parse<{ response: Row }>(ext[0].R).response ?? {};
+      const old = parse<{ response: Row }>(stored[0]?.RESULT ?? '{"response":{}}').response ?? {};
+      const ops = String(fresh.operations ?? '');
+      const [cls, tClassify] = await timed(() => query<Row>(`SELECT AI_CLASSIFY(?,
+         [ {'label': 'REST', 'description': 'Full-service or casual restaurant'},
+           {'label': 'OFFC', 'description': 'Office building owner or lessor'},
+           {'label': 'RETL', 'description': 'Retail store'},
+           {'label': 'APTS', 'description': 'Apartment or habitational buildings'},
+           {'label': 'MFGL', 'description': 'Light manufacturing or assembly'},
+           {'label': 'WHSE', 'description': 'Warehouse or distribution of ordinary goods'},
+           {'label': 'HOTL', 'description': 'Hotel or motel'},
+           {'label': 'AUTO', 'description': 'Auto repair or collision shop'},
+           {'label': 'CONT', 'description': 'Artisan contractor such as electrical or plumbing'},
+           {'label': 'FIRE', 'description': 'Manufactures, stores, ships, or sells fireworks, explosives, or pyrotechnics, even seasonally'},
+           {'label': 'NITE', 'description': 'Nightclub or bar with live entertainment'},
+           {'label': 'ROOF', 'description': 'Roofing contractor'} ],
+         {'task_description': 'Pick the underwriting class code that governs this commercial risk. If any hazardous activity is described, choose that class even if it is a small part of operations.'}
+       ):labels[0]::STRING AS C`, [ops]));
+      const predictedClass = String(cls[0].C);
+      const guide = await query<Row>(`SELECT appetite, max_tiv, REGEXP_SUBSTR(guidance_text, '^[^(]+') AS NAME FROM UW.APPETITE_GUIDE
+                                      WHERE rule_type = 'CLASS' AND class_code = ?`, [predictedClass]);
+      const storedTiv = new Map(locs.map((l) => [num(l.LOC_NO), num(l.NEARBY_TIV)]));
+      const where = new Map(locs.map((l) => [num(l.LOC_NO), l]));
+      const label = (k: string) => (k === 'operations' ? 'Nature of operations' : FIELDS.find(([key]) => key === k)?.[1] ?? k);
+      return {
+        parsedChars: num(parsed[0].N), storedParsedChars: num(text[0]?.N),
+        fields: ['declared_business_type', 'location_count', 'total_tiv', 'operations'].map((k) => ({ key: k, label: label(k), value: String(fresh[k] ?? ''), stored: String(old[k] ?? '') })),
+        predictedClass, storedClass: String(score[0].PREDICTED_CLASS), declaredClass: String(score[0].DECLARED_CLASS),
+        appetite: String(guide[0]?.APPETITE ?? 'OUT'), className: String(guide[0]?.NAME ?? '').trim(), maxTiv: guide[0]?.MAX_TIV == null ? null : num(guide[0].MAX_TIV),
+        locations: near.map((n) => ({ loc: num(n.LOC_NO), city: String(where.get(num(n.LOC_NO))?.CITY ?? ''), state: String(where.get(num(n.LOC_NO))?.STATE ?? ''),
+          nearbyPolicies: num(n.N), nearbyTiv: num(n.TIV), storedNearbyTiv: storedTiv.get(num(n.LOC_NO)) ?? 0 })),
+        timings: { parse: tParse, extract: tExtract, classify: tClassify, proximity: tProx },
+      };
+    });
+    return res && { ...res, source: 'snowflake', role: ROLE, latencyMs };
+  },
+
 };

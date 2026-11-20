@@ -3,17 +3,17 @@
 // Submission file: the broker documents with AI_EXTRACT source highlights, extracted fields, the
 // appetite check with Cortex Search passages, loss-run charts, the broker email, an AI_COMPLETE memo
 // draft, and the underwriter's decision (request info, decline, or move to quote) in a sticky rail.
-import { ArrowRight, Check, ChevronLeft, FileText, Mail, MapPin, Send, Sparkles, ThumbsDown } from 'lucide-react';
+import { ArrowRight, Check, RefreshCw, ChevronLeft, FileText, Mail, MapPin, Send, Sparkles, ThumbsDown } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AiDraft, Reasoning } from '@/components/Reasoning';
 import { DEFAULT_SUBMISSION, rememberSubmission } from '@/components/Shell';
-import { AppetitePill, CompletenessPill, Empty, ErrorNote, FitMeter, PageSkeleton, Panel, PoweredBy, SourceBadge, money } from '@/components/ui';
+import { AppetitePill, CompletenessPill, Empty, ErrorNote, FitMeter, PageSkeleton, Panel, PoweredBy, SampleAiBadge, SourceBadge, money } from '@/components/ui';
 import { useAsync } from '@/components/useAsync';
 import { data } from '@/lib/client';
-import type { AiText, Detail } from '@/lib/types';
+import type { AiText, Detail, Recheck } from '@/lib/types';
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const DECLINE_REASONS = ['Class outside appetite', 'Territory outside appetite', 'Exceeds capacity or TIV limits', 'Loss history', 'Incomplete submission', 'Other'];
@@ -104,6 +104,8 @@ function FileView({ d, onDecided }: { d: Detail; onDecided: () => void }) {
             </Panel>
           </div>
 
+          <RecheckPanel id={r.id} />
+
           <div className="grid lg:grid-cols-2 gap-4">
             <Panel kicker="Appetite" title="Appetite and completeness check" right={<PoweredBy>Cortex Search</PoweredBy>}>
               {r.reasons.length ? <ul className="text-sm space-y-1.5 mb-3">{r.reasons.map((x) => <li key={x} className="flex gap-2"><span style={{ color: r.appetite === 'OUT' ? 'var(--rust)' : 'var(--amber)' }} aria-hidden>●</span>{x}</li>)}</ul>
@@ -165,6 +167,31 @@ function FileView({ d, onDecided }: { d: Detail; onDecided: () => void }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function RecheckPanel({ id }: { id: string }) {
+  const [state, setState] = useState<{ busy?: boolean; x?: Recheck | null; error?: string }>({});
+  const run = () => { setState({ busy: true }); data.recheck(id).then((x) => setState({ x }), (e) => setState({ error: String(e.message ?? e) })); };
+  const x = state.x;
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  return (
+    <Panel kicker="Re-check" title={<span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4" style={{ color: 'var(--ai)' }} aria-hidden />Re-extract and re-check appetite</span>}
+      right={<><PoweredBy>AI_PARSE_DOCUMENT · AI_EXTRACT · AI_CLASSIFY · ST_DWITHIN</PoweredBy><button className="btn btn-ai" onClick={run} disabled={state.busy}>{x ? 'Run again' : 'Re-check'}</button></>}>
+      {state.busy ? <Reasoning kind="recheck" /> : state.error ? <ErrorNote error={state.error} /> : x === null ? <div className="text-sm">No application file for {id}.</div> : x ? (
+        <div className="space-y-3 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            {x.source === 'mock' ? <SampleAiBadge /> : <SourceBadge p={x} />}
+            {x.timings && <span className="text-[11.5px] num" style={{ color: 'var(--ink-3)' }}>parse {x.timings.parse} ms · extract {x.timings.extract} ms · classify {x.timings.classify} ms · ST_DWITHIN {x.timings.proximity} ms</span>}
+          </div>
+          <p>Parsed <span className="num">{x.parsedChars.toLocaleString()}</span> characters (stored: <span className="num">{x.storedParsedChars.toLocaleString()}</span>). Governing class <strong>{x.predictedClass}</strong>{x.className ? ` (${x.className})` : ''}, declared {x.declaredClass}{x.predictedClass !== x.storedClass ? `; stored prediction was ${x.storedClass}` : ', same as the stored prediction'}. Guide appetite for this class: <strong>{x.appetite}</strong>{x.maxTiv ? `, up to ${money(x.maxTiv)} TIV` : ''}.</p>
+          <table className="w-full text-[12.5px]"><thead><tr className="text-left" style={{ color: 'var(--ink-3)' }}><th className="py-1 pr-3">Field</th><th className="py-1 pr-3">Re-extracted</th><th className="py-1">Matches stored</th></tr></thead>
+            <tbody>{x.fields.map((f) => <tr key={f.key} className="border-t" style={{ borderColor: 'var(--rule)' }}><td className="py-1 pr-3">{f.label}</td><td className="py-1 pr-3">{f.value || '—'}</td><td className="py-1">{same(f.value, f.stored) ? 'Yes' : `No (stored: ${f.stored || '—'})`}</td></tr>)}</tbody></table>
+          <table className="w-full text-[12.5px]"><thead><tr className="text-left" style={{ color: 'var(--ink-3)' }}><th className="py-1 pr-3">Location</th><th className="py-1 pr-3 text-right">Book policies within 25 km</th><th className="py-1 text-right">Book TIV within 25 km</th></tr></thead>
+            <tbody>{x.locations.map((l) => <tr key={l.loc} className="border-t" style={{ borderColor: 'var(--rule)' }}><td className="py-1 pr-3">{l.loc}. {l.city}, {l.state}</td><td className="py-1 pr-3 text-right num">{l.nearbyPolicies}</td><td className="py-1 text-right num">{money(l.nearbyTiv)}{l.nearbyTiv !== l.storedNearbyTiv ? ` (stored ${money(l.storedNearbyTiv)})` : ''}</td></tr>)}</tbody></table>
+        </div>
+      ) : <div className="inset px-4 py-5 text-sm" style={{ color: 'var(--ink-2)' }}>Run the document AI on this application again and re-check its class, appetite and nearby book exposure, then compare with the stored results.</div>}
+    </Panel>
   );
 }
 

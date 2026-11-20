@@ -8,7 +8,7 @@ import { Markdown, SampleAiBadge, SourceBadge } from '@/components/ui';
 import type { AiText } from '@/lib/types';
 import { SAMPLE_DELAY_MS } from '@/lib/sample-timing';
 
-export type ReasoningKind = 'memo' | 'email' | 'ask';
+export type ReasoningKind = 'memo' | 'email' | 'ask' | 'recheck';
 
 const STEPS: Record<ReasoningKind, string[]> = {
   memo: [
@@ -30,6 +30,13 @@ const STEPS: Record<ReasoningKind, string[]> = {
     'Running the query on QUORVANE_WH',
     'Composing the answer',
   ],
+  recheck: [
+    'Parsing the application with AI_PARSE_DOCUMENT (OCR mode)',
+    'Extracting fields with AI_EXTRACT',
+    'Checking proximity to the book with ST_DWITHIN (25 km)',
+    'Classifying operations with AI_CLASSIFY',
+    'Looking up the class in the appetite guide',
+  ],
 };
 
 
@@ -46,7 +53,7 @@ export function Reasoning({ kind }: { kind: ReasoningKind }) {
   return (
     <div className="inset p-4" role="status" aria-live="polite">
       <div className="flex items-center justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--ai)' }}><Sparkles className="w-3.5 h-3.5" aria-hidden />Working on the draft</div>
+        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--ai)' }}><Sparkles className="w-3.5 h-3.5" aria-hidden />{kind === 'recheck' ? 'Re-checking the submission' : 'Working on the draft'}</div>
         <span className="num text-[11px]" style={{ color: 'var(--ink-3)' }}>{(elapsed / 1000).toFixed(1)} s</span>
       </div>
       <ol className="space-y-2">
