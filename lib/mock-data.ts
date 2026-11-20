@@ -2,7 +2,7 @@
 // and in the static /try/ export. It serves results captured from a Live run of sql/setup.sql
 // (scripts/capture-sample.mjs), so the numbers and AI text match what Snowflake produced.
 // AI outputs are labeled "Sample AI response" in the UI and wait about as long as a real call.
-import { SAMPLE_DELAY_MS } from './sample-timing';
+import { SAMPLE_DELAY_BOUNDS_MS, SAMPLE_DELAY_MS } from './sample-timing';
 import type { AiText, AskAnswer, Decision, Detail, Portfolio, Queue, UwData } from './types';
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
@@ -18,6 +18,8 @@ function get<T>(path: string): Promise<T> {
   return p;
 }
 const think = (ms: number) => new Promise((r) => setTimeout(r, ms * (0.85 + Math.random() * 0.3)));
+// AI surfaces: same jitter, kept within 4-8 s.
+const thinkAi = (ms: number) => new Promise((r) => setTimeout(r, Math.min(SAMPLE_DELAY_BOUNDS_MS.max, Math.max(SAMPLE_DELAY_BOUNDS_MS.min, ms * (0.85 + Math.random() * 0.3)))));
 const mock = <T extends object>(x: T): T => ({ ...x, source: 'mock', latencyMs: undefined });
 
 function localDecisions(): Record<string, Decision[]> {
@@ -38,11 +40,11 @@ export const mockData: UwData = {
     return locs ? mock({ ...base, ...locs }) : null;
   },
   async memo(id) {
-    const [a] = await Promise.all([get<AiText>(`ai/${id}-memo.json`), think(SAMPLE_DELAY_MS.memo)]);
+    const [a] = await Promise.all([get<AiText>(`ai/${id}-memo.json`), thinkAi(SAMPLE_DELAY_MS.memo)]);
     return mock(a);
   },
   async brokerEmail(id) {
-    const [a] = await Promise.all([get<AiText>(`ai/${id}-email.json`), think(SAMPLE_DELAY_MS.email)]);
+    const [a] = await Promise.all([get<AiText>(`ai/${id}-email.json`), thinkAi(SAMPLE_DELAY_MS.email)]);
     return mock(a);
   },
   async decide(id, decision, reason) {
@@ -53,7 +55,7 @@ export const mockData: UwData = {
     return { ok: true, source: 'mock' };
   },
   async ask(question) {
-    const [answers] = await Promise.all([get<(AskAnswer & { question: string })[]>('ask.json'), think(SAMPLE_DELAY_MS.ask)]);
+    const [answers] = await Promise.all([get<(AskAnswer & { question: string })[]>('ask.json'), thinkAi(SAMPLE_DELAY_MS.ask)]);
     const hit = answers.find((a) => normalize(a.question) === normalize(question));
     if (hit) return mock(hit);
     return { source: 'mock', sources: [], text: 'This hosted example only has recorded answers for the suggested questions. Pick one of them, or run the app in Live mode to ask anything: the Cortex Agent writes SQL with Cortex Analyst on the SUBMISSIONS_SV semantic view.' };
