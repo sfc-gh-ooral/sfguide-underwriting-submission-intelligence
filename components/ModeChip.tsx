@@ -5,6 +5,7 @@
 import { Database, FlaskConical, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { HOSTED_EXAMPLE } from '@/lib/hosted';
+import { fetchMode } from '@/lib/client';
 import { type Mode, preferSample, setPreferredMode } from '@/lib/mode';
 
 const REPO = 'https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence';
@@ -13,12 +14,14 @@ export function ModeChip() {
   const [configured, setConfigured] = useState<boolean>();
   const [mode, setMode] = useState<Mode>();
   const [help, setHelp] = useState(false);
+  const [modeError, setModeError] = useState<string>();
 
   useEffect(() => {
     const done = (c: boolean) => { setConfigured(c); setMode(c && !preferSample() ? 'live' : 'sample'); };
     if (HOSTED_EXAMPLE) return done(false);
-    fetch('/api/mode').then((r) => r.json()).then((j) => done(j.mode === 'live')).catch(() => done(false));
+    fetchMode().then(done).catch((e) => setModeError((e as Error).message));
   }, []);
+  if (modeError) return <span role="alert" className="text-xs font-semibold rounded-md px-2.5 py-1" style={{ background: '#B42318', color: '#fff' }} title={modeError}>Mode check failed: {modeError}</span>;
   if (!mode) return null;
 
   const choose = (next: Mode) => {

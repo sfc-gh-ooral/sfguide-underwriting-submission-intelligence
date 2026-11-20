@@ -18,11 +18,21 @@ const remote = new Proxy({} as UwData, {
   get: (_t, op: Op) => (...args: unknown[]) => call(op, args),
 });
 
+export async function fetchMode(): Promise<boolean> {
+  let res: Response;
+  try { res = await fetch('/api/mode'); } catch (e) { throw new Error(`Could not reach /api/mode: ${(e as Error).message}`); }
+  if (!res.ok) throw new Error(`/api/mode failed (${res.status}); Live/Sample mode could not be determined.`);
+  const j = await res.json().catch(() => null);
+  if (!j || (j.mode !== 'live' && j.mode !== 'sample')) throw new Error('/api/mode returned an unexpected response.');
+  return j.mode === 'live';
+}
+
 // Decided once per page load: the mode switch reloads the page.
 let live: boolean | undefined;
 async function useLive(): Promise<boolean> {
   if (HOSTED_EXAMPLE || preferSample()) return false;
-  if (live === undefined) live = await fetch('/api/mode').then((r) => r.json()).then((j) => j.mode === 'live').catch(() => false);
+  // If the mode check fails, surface the error instead of silently showing Sample data.
+  if (live === undefined) live = await fetchMode();
   return live;
 }
 
