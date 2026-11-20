@@ -2,8 +2,10 @@
 
 // Staged progress for AI calls. The steps mirror what the live path actually does. Steps advance on a
 // timer; the last one holds until the real (or sample) answer arrives.
-import { Check, Loader2 } from 'lucide-react';
+import { BookOpen, Check, Loader2, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Markdown, SampleAiBadge, SourceBadge } from '@/components/ui';
+import type { AiText } from '@/lib/types';
 import { SAMPLE_DELAY_MS } from '@/lib/sample-timing';
 
 export type ReasoningKind = 'memo' | 'email' | 'ask';
@@ -31,44 +33,77 @@ const STEPS: Record<ReasoningKind, string[]> = {
 };
 
 
-export function Reasoning({ kind, compact = false }: { kind: ReasoningKind; compact?: boolean }) {
+export function Reasoning({ kind }: { kind: ReasoningKind }) {
   const steps = STEPS[kind];
-  const [step, setStep] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
-    const per = SAMPLE_DELAY_MS[kind] / steps.length;
     const t0 = Date.now();
-    const id = window.setInterval(() => {
-      const ms = Date.now() - t0;
-      setElapsed(ms);
-      setStep(Math.min(steps.length - 1, Math.floor(ms / per)));
-    }, 120);
+    const id = window.setInterval(() => setElapsed(Date.now() - t0), 100);
     return () => window.clearInterval(id);
-  }, [kind, steps.length]);
-
+  }, []);
+  const per = SAMPLE_DELAY_MS[kind] / steps.length;
+  const step = Math.min(steps.length - 1, Math.floor(elapsed / per));
   return (
-    <div className="reasoning" role="status" aria-live="polite">
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-          <span className="reasoning-orb" aria-hidden />Reasoning
-        </div>
-        <span className="text-[11px] muted tabular">{(elapsed / 1000).toFixed(1)}s</span>
+    <div className="inset p-4" role="status" aria-live="polite">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--ai)' }}><Sparkles className="w-3.5 h-3.5" aria-hidden />Working on the draft</div>
+        <span className="num text-[11px]" style={{ color: 'var(--ink-3)' }}>{(elapsed / 1000).toFixed(1)} s</span>
       </div>
-      <ol className="space-y-1.5">
-        {(compact ? steps.slice(Math.max(0, step - 1), step + 1) : steps).map((s) => {
-          const i = steps.indexOf(s);
+      <ol className="space-y-2">
+        {steps.map((s, i) => {
           const state = i < step ? 'done' : i === step ? 'active' : 'todo';
           return (
-            <li key={s} className={`reasoning-step ${state} flex items-center gap-2 text-xs`}>
-              {state === 'done' ? <Check className="w-3.5 h-3.5" style={{ color: 'var(--positive)' }} aria-hidden />
-                : state === 'active' ? <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--accent)' }} aria-hidden />
-                : <span className="w-3.5 h-3.5 rounded-full border" style={{ borderColor: 'var(--border)' }} aria-hidden />}
+            <li key={s} className="flex items-center gap-2.5 text-[13px]" style={{ color: state === 'todo' ? 'var(--ink-3)' : 'var(--ink)', opacity: state === 'todo' ? 0.7 : 1 }}>
+              {state === 'done' ? <Check className="w-4 h-4 shrink-0" style={{ color: 'var(--sea)' }} aria-hidden />
+                : state === 'active' ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" style={{ color: 'var(--ai)' }} aria-hidden />
+                : <span className="w-4 h-4 shrink-0 rounded-full border" style={{ borderColor: 'var(--rule)' }} aria-hidden />}
               <span>{s}</span>
             </li>
           );
         })}
       </ol>
-      <div className="reasoning-bar mt-3" aria-hidden><span style={{ width: `${Math.min(96, (elapsed / SAMPLE_DELAY_MS[kind]) * 100)}%` }} /></div>
+      <div className="progress-rule mt-3" aria-hidden><span style={{ width: `${Math.min(96, (elapsed / SAMPLE_DELAY_MS[kind]) * 100)}%` }} /></div>
+    </div>
+  );
+}
+
+/** Reveals AI text word by word (about 1.5 s for a memo), then shows its sources. */
+export function useReveal(text: string | undefined, ms = 1600) {
+  const [n, setN] = useState(0);
+  const words = text ? text.split(/(\s+)/) : [];
+  useEffect(() => {
+    if (!text) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setN(words.length); return; }
+    setN(0);
+    const t0 = Date.now();
+    const id = window.setInterval(() => { const k = Math.min(1, (Date.now() - t0) / ms); setN(Math.ceil(k * words.length)); if (k >= 1) window.clearInterval(id); }, 40);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
+  return { shown: words.slice(0, n).join(''), done: n >= words.length };
+}
+
+export function Citations({ sources }: { sources: string[] }) {
+  if (!sources.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t" style={{ borderColor: 'var(--rule)' }}>
+      <span className="label mr-1">Sources</span>
+      {sources.map((s, i) => <span key={s} className="pill pill-plain fade-in" style={{ animationDelay: `${i * 60}ms` }}><BookOpen className="w-3 h-3" aria-hidden />{s}</span>)}
+    </div>
+  );
+}
+
+export function AiDraft({ a, label }: { a: AiText; label?: string }) {
+  const { shown, done } = useReveal(a.text);
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        {a.source === 'mock' ? <SampleAiBadge /> : <SourceBadge p={a} />}
+        {label && <span className="pill pill-ai">{label}</span>}
+        {a.model && <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>Model: {a.model}</span>}
+      </div>
+      <div className={done ? '' : 'caret'}><Markdown text={shown} /></div>
+      {done && <Citations sources={a.sources} />}
     </div>
   );
 }

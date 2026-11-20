@@ -20,7 +20,7 @@ const CARD_ID = "underwriting-submission-intelligence";           // catalog id:
 const VIEWPORT = { width: 1600, height: 1000 };       // 16:10, same shape as catalog cards
 const PAGE_SCALE = 1.25;                              // 2000x1250 PNGs: sharp, and under the guide's 500 KB
 const CARD_SCALE = 0.6;                               // 1600x1000 CSS px -> 960x600 card
-const SCHEME = process.env.COLOR_SCHEME || "dark";   // "dark" or "light"
+const SCHEME = process.env.COLOR_SCHEME || "light";   // "light" or "dark"
 
 // The walkthrough, in landing-page order. `card` marks which shots become catalog cards (in that order).
 const SHOTS = [
@@ -34,7 +34,7 @@ const SHOTS = [
     async act(page) {
       await page.getByRole("button", { name: "Draft memo" }).click();
       await page.getByText("Sample AI response").first().waitFor({ timeout: 20000 });
-      await toTop(page, "Appetite check");
+      await toTop(page, "Underwriting memo");
     },
   },
   {
@@ -42,10 +42,10 @@ const SHOTS = [
     async act(page) {
       await page.getByRole("button", { name: /Request info/ }).click();
       await page.locator("#email-draft").waitFor({ timeout: 20000 });
-      await toTop(page, "Underwriting memo draft");
+      await toTop(page, "Underwriter action");
     },
   },
-  { name: "05-portfolio-fit", card: 5, path: "/portfolio/?id=SUB-1003", wait: "text=Exposure map" },
+  { name: "05-portfolio-fit", card: 5, path: "/portfolio/?id=SUB-1003", wait: "text=Submission against the existing book" },
   {
     name: "06-ask", card: 6, path: "/ask/",
     async act(page) {
@@ -107,7 +107,7 @@ async function main() {
         if (shot.wait) await page.locator(shot.wait).first().waitFor();
         await settle(page);
         if (shot.act) { await shot.act(page); await settle(page); }
-        await page.screenshot({ path: out, ...(out.endsWith(".jpg") ? { type: "jpeg", quality: 82 } : {}) });
+        await page.screenshot({ path: out, ...(out.endsWith(".jpg") ? { type: "jpeg", quality: 72 } : {}) });
         await context.close();
         console.log(`${out.replace(ROOT + "/", "")}  ${Math.round(statSync(out).size / 1024)} KB`);
       }

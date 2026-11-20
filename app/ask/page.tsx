@@ -1,11 +1,11 @@
 'use client';
 
-// Ask: questions about the pipeline, answered by a Cortex Agent that writes SQL with
+// Ask the desk: questions about the pipeline, answered by a Cortex Agent that writes SQL with
 // Cortex Analyst on the SUBMISSIONS_SV semantic view and searches the appetite guide.
-import { Send } from 'lucide-react';
+import { MessageSquare, Send, Sparkles } from 'lucide-react';
 import { useState } from 'react';
-import { Reasoning } from '@/components/Reasoning';
-import { Card, ErrorNote, Markdown, PoweredBy, SampleAiBadge, SourceBadge } from '@/components/ui';
+import { Citations, Reasoning, useReveal } from '@/components/Reasoning';
+import { ErrorNote, Markdown, Panel, PoweredBy, SampleAiBadge, SourceBadge } from '@/components/ui';
 import { data } from '@/lib/client';
 import type { AskAnswer } from '@/lib/types';
 
@@ -19,44 +19,61 @@ const SUGGESTED = [
 export default function AskPage() {
   const [q, setQ] = useState(SUGGESTED[0]);
   const [turns, setTurns] = useState<{ q: string; a?: AskAnswer; error?: string }[]>([]);
-  const busy = turns.length > 0 && !turns[0].a && !turns[0].error;
+  const busy = turns.length > 0 && !turns[turns.length - 1].a && !turns[turns.length - 1].error;
   const ask = (question: string) => {
     if (!question.trim() || busy) return;
-    setTurns((t) => [{ q: question }, ...t]);
-    data.ask(question).then((a) => setTurns((t) => [{ ...t[0], a }, ...t.slice(1)]), (e) => setTurns((t) => [{ ...t[0], error: String(e.message ?? e) }, ...t.slice(1)]));
+    setTurns((t) => [...t, { q: question }]);
+    const done = (patch: { a?: AskAnswer; error?: string }) => setTurns((t) => [...t.slice(0, -1), { ...t[t.length - 1], ...patch }]);
+    data.ask(question).then((a) => done({ a }), (e) => done({ error: String(e.message ?? e) }));
   };
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="page-title">Ask the submission pipeline</h1>
-        <p className="text-sm text-2 mt-1">Plain-language questions over submissions, brokers, classes, TIV, and fit scores.</p>
-        <div className="flex flex-wrap gap-2 mt-2"><PoweredBy>Cortex Agent</PoweredBy><PoweredBy>Cortex Analyst · semantic view</PoweredBy><PoweredBy>Cortex Search</PoweredBy></div>
-      </div>
-      <Card>
-        <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); ask(q); }}>
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+      <div className="space-y-4 min-w-0">
+        <div>
+          <div className="label">Ask the desk</div>
+          <h1 className="text-[28px] font-semibold tracking-tight leading-tight">Ask the submission pipeline anything</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--ink-2)' }}>Plain-language questions over submissions, brokers, classes, TIV, fit scores and the appetite guide.</p>
+          <div className="flex flex-wrap gap-2 mt-2"><PoweredBy>Cortex Agent</PoweredBy><PoweredBy>Cortex Analyst · SUBMISSIONS_SV</PoweredBy><PoweredBy>Cortex Search</PoweredBy></div>
+        </div>
+        {turns.length === 0 && (
+          <div className="sheet ruled px-5 py-10 text-center">
+            <MessageSquare className="w-6 h-6 mx-auto" style={{ color: 'var(--saffron-ink)' }} aria-hidden />
+            <div className="font-semibold mt-2">Start with a suggested question</div>
+            <div className="text-sm" style={{ color: 'var(--ink-3)' }}>Answers show the generated SQL and the result table.</div>
+          </div>)}
+        {turns.map((t, i) => (
+          <div key={i} className="space-y-2 fade-in">
+            <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2 text-sm" style={{ background: 'var(--marine)', color: '#F6F2EA' }}>{t.q}</div></div>
+            <Panel className="min-w-0">
+              <div className="pt-3.5">{t.error ? <ErrorNote error={t.error} /> : !t.a ? <Reasoning kind="ask" /> : <Answer a={t.a} />}</div>
+            </Panel>
+          </div>))}
+        <form className="sheet p-2 flex gap-2 sticky bottom-3" onSubmit={(e) => { e.preventDefault(); ask(q); }}>
           <label htmlFor="ask" className="sr-only">Question</label>
-          <input id="ask" className="flex-1 min-w-0 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} />
-          <button className="btn btn-primary text-sm inline-flex items-center gap-1" disabled={busy}><Send className="w-4 h-4" aria-hidden />Ask</button>
+          <input id="ask" className="field !border-0 flex-1 min-w-0" value={q} onChange={(e) => setQ(e.target.value)} maxLength={500} placeholder="Ask about submissions, brokers, classes…" />
+          <button className="btn btn-primary" disabled={busy}><Send className="w-4 h-4" aria-hidden />Ask</button>
         </form>
-        <div className="flex flex-wrap gap-2 mt-3">{SUGGESTED.map((s) => <button key={s} className="btn text-xs" onClick={() => { setQ(s); ask(s); }} disabled={busy}>{s}</button>)}</div>
-      </Card>
-      {turns.map((t, i) => (
-        <Card key={turns.length - i} className="min-w-0" title={t.q}>
-          {t.error ? <ErrorNote error={t.error} /> : !t.a ? <Reasoning kind="ask" /> : (
-            <div>
-              <div className="flex flex-wrap gap-2 mb-2">{t.a.source === 'mock' ? <SampleAiBadge /> : <SourceBadge p={t.a} />}{t.a.sources.map((s) => <span key={s} className="text-[11px] muted">{s}</span>)}</div>
-              <Markdown text={t.a.text} />
-              {t.a.columns && t.a.rows && t.a.rows.length > 0 && (
-                <div className="relative overflow-x-auto mt-3 -mx-4">
-                  <table className="data-table min-w-[520px]"><thead><tr>{t.a.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                    <tbody>{t.a.rows.map((r, j) => <tr key={j}>{r.map((v, k) => <td key={k} className="text-xs tabular">{v === null ? '' : String(v)}</td>)}</tr>)}</tbody></table>
-                </div>
-              )}
-              {t.a.sql && <details className="mt-3"><summary className="text-xs muted cursor-pointer">SQL generated by Cortex Analyst</summary><pre className="text-[11px] rounded-lg p-3 mt-2 overflow-x-auto" style={{ background: 'var(--surface-2)' }}>{t.a.sql}</pre></details>}
-            </div>
-          )}
-        </Card>
-      ))}
+      </div>
+      <Panel kicker="Suggested" title="Questions to try" className="lg:sticky lg:top-[68px]">
+        <div className="grid gap-2">{SUGGESTED.map((s) => <button key={s} className="btn !justify-start text-left !whitespace-normal" onClick={() => { setQ(s); ask(s); }} disabled={busy}><Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--saffron-ink)' }} aria-hidden />{s}</button>)}</div>
+      </Panel>
+    </div>
+  );
+}
+
+function Answer({ a }: { a: AskAnswer }) {
+  const { shown, done } = useReveal(a.text, 1200);
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2 mb-2">{a.source === 'mock' ? <SampleAiBadge /> : <SourceBadge p={a} />}</div>
+      <div className={done ? '' : 'caret'}><Markdown text={shown} /></div>
+      {done && a.columns && a.rows && a.rows.length > 0 && (
+        <div className="relative overflow-x-auto mt-3 rounded-lg border fade-in" style={{ borderColor: 'var(--rule)' }}>
+          <table className="dtable min-w-[520px]"><thead><tr>{a.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+            <tbody>{a.rows.map((r, j) => <tr key={j}>{r.map((v, k) => <td key={k} className="num text-xs">{v === null ? '' : String(v)}</td>)}</tr>)}</tbody></table>
+        </div>)}
+      {done && a.sql && <details className="mt-3"><summary className="text-xs cursor-pointer" style={{ color: 'var(--ink-3)' }}>SQL generated by Cortex Analyst</summary><pre className="num text-[11px] rounded-lg p-3 mt-2 overflow-x-auto inset">{a.sql}</pre></details>}
+      {done && <Citations sources={a.sources} />}
     </div>
   );
 }

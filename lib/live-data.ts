@@ -104,7 +104,7 @@ export const liveData: UwData = {
         locations: locs.map(toLoc),
         email: { from: String(e.FROM_NAME ?? ''), subject: String(e.SUBJECT ?? ''), body: String(e.BODY ?? ''), sentAt: e.SENT_AT ? ts(e.SENT_AT) : '' },
         guide,
-        decisions: decisions.map((d) => ({ decision: String(d.DECISION), reason: String(d.REASON), at: ts(d.DECIDED_AT), by: '<YOUR_USER>' })),
+        decisions: decisions.map((d) => ({ decision: String(d.DECISION), reason: String(d.REASON), at: ts(d.DECIDED_AT), by: 'you (USI_DEMO_ROLE)' })),
       };
     });
     return res && { ...res, source: 'snowflake', role: ROLE, latencyMs };
@@ -161,7 +161,7 @@ export const liveData: UwData = {
     const facts = { insured: d.row.insured, broker_contact: d.email.from, broker_firm: d.row.broker, missing_items: d.row.missing, appetite: d.row.appetite, appetite_reasons: d.row.reasons, broker_note: d.email.body };
     return complete(id, 'broker_email',
       'Draft a short, friendly email from a commercial underwriter to the broker. If items are missing, request them specifically and explain they are needed before a quote. ' +
-      'If the risk is out of appetite, decline politely, give the reason in plain terms, and suggest the broker try a specialty market. Do not name any real insurer, broker or company; refer to a specialty market generically. If referral items exist, list the questions the underwriter needs answered. ' +
+      'Decline only when appetite is OUT: then decline politely, give the reason in plain terms, and suggest the broker try a specialty market. Do not name any real insurer, broker or company; refer to a specialty market generically. If appetite is IN or REFER, never decline: request the missing items and, for REFER, list the questions the underwriter needs answered before a referral. ' +
       'Under 150 words. Start with "Subject:" on the first line. Sign as "[Underwriter name]". Use only these facts:\n' + JSON.stringify(facts),
       ['AI_COMPLETE', 'SUBMISSION_SCORES', 'BROKER_EMAILS']);
   },

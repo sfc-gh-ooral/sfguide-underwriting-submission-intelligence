@@ -1,70 +1,92 @@
 'use client';
 
-// Small shared UI pieces: badges, cards, KPI tiles, and a tiny markdown renderer for AI text.
-import { Bot, Database, Sparkles, Timer } from 'lucide-react';
-import type { Appetite } from '@/lib/types';
-import type { ReactNode } from 'react';
-import type { Provenance } from '@/lib/types';
+// Shared UI kit for the Quorvane desk: panels, KPI tiles with counters and sparklines, status pills,
+// "Powered by" tags, provenance badges, skeletons, and a small markdown renderer for AI text.
+import { AlertTriangle, Bot, Database, Sparkles, Timer } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { Appetite, Provenance } from '@/lib/types';
 
 export const money = (x: number): string => {
   if (x < 0) return `−${money(-x)}`;
-  return x >= 1e9 ? `$${(x / 1e9).toFixed(2)}B` : x >= 1e6 ? `$${(x / 1e6).toFixed(2)}M` : x >= 1e3 ? `$${Math.round(x / 1e3)}K` : `$${Math.round(x)}`;
+  return x >= 1e9 ? `$${(x / 1e9).toFixed(2)}B` : x >= 1e6 ? `$${(x / 1e6).toFixed(1)}M` : x >= 1e3 ? `$${Math.round(x / 1e3)}K` : `$${Math.round(x)}`;
 };
 
-export function Card({ title, right, children, className = '' }: { title?: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {
+export function Panel({ title, kicker, right, children, className = '', pad = true }: { title?: ReactNode; kicker?: string; right?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
   return (
-    <section className={`card p-4 ${className}`}>
+    <section className={`sheet ${className}`}>
       {(title || right) && (
-        <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-          {title && <h2 className="text-sm font-semibold">{title}</h2>}
-          {right && <div className="flex items-center gap-2 flex-wrap">{right}</div>}
-        </div>
+        <header className="flex flex-wrap items-start justify-between gap-2 px-4 pt-3.5 pb-2">
+          <div className="min-w-0">{kicker && <div className="label mb-0.5">{kicker}</div>}{title && <h2 className="text-[15px] font-semibold leading-snug">{title}</h2>}</div>
+          {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
+        </header>
       )}
-      {children}
+      <div className={pad ? 'px-4 pb-4' : ''}>{children}</div>
     </section>
   );
 }
 
-export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/** Counts up to a number once, on first render. Honors reduced motion. */
+export function useCountUp(target: number, ms = 900) {
+  const [v, setV] = useState(0);
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setV(target); return; }
+    const t0 = performance.now(); let id = 0;
+    const step = (t: number) => { const k = Math.min(1, (t - t0) / ms); setV(target * (1 - (1 - k) ** 3)); if (k < 1) id = requestAnimationFrame(step); else done.current = true; };
+    id = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(id);
+  }, [target, ms]);
+  return v;
+}
+
+export function Spark({ values, color = 'var(--saffron)' }: { values: number[]; color?: string }) {
+  if (values.length < 2) return null;
+  const max = Math.max(...values, 1), W = 84, H = 26;
+  const pts = values.map((v, i) => `${(i / (values.length - 1)) * W},${H - 2 - (v / max) * (H - 4)}`).join(' ');
+  return <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="shrink-0"><polyline points={pts} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" /></svg>;
+}
+
+export function Kpi({ label, value, format, sub, tone, spark }: { label: string; value: number; format: (n: number) => string; sub?: ReactNode; tone?: 'sea' | 'amber' | 'rust'; spark?: number[] }) {
+  const v = useCountUp(value);
   return (
-    <div className="card kpi card-hover p-4">
-      <div className="text-[11px] uppercase tracking-wider muted mb-1 font-semibold">{label}</div>
-      <div className="kpi-value text-[26px] font-bold tabular tracking-tight">{value}</div>
-      {sub && <div className="text-xs muted mt-1">{sub}</div>}
+    <div className="sheet sheet-lift px-4 py-3 min-w-0">
+      <div className="label truncate">{label}</div>
+      <div className="flex items-end justify-between gap-2 mt-1">
+        <div className="num text-[26px] leading-none font-semibold" style={tone ? { color: `var(--${tone})` } : undefined}>{format(v)}</div>
+        {spark && <Spark values={spark} />}
+      </div>
+      {sub && <div className="text-xs mt-1.5" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
     </div>
   );
 }
 
-function Pill({ children, color, bg, title }: { children: ReactNode; color: string; bg: string; title?: string }) {
-  return (
-    <span title={title} className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap" style={{ color, background: bg }}>
-      {children}
-    </span>
-  );
-}
-
-/** Names the Snowflake capability behind a component. */
+/** Names the Snowflake capability behind a component (only capabilities that ran in Live mode). */
 export function PoweredBy({ children }: { children: ReactNode }) {
-  return <Pill color="var(--accent)" bg="var(--accent-soft)"><Sparkles className="w-3 h-3" aria-hidden />Powered by {children}</Pill>;
+  return <span className="powered"><Sparkles className="w-3 h-3 shrink-0" aria-hidden />Powered by {children}</span>;
 }
 
 export function SampleAiBadge() {
-  return <Pill color="var(--sample)" bg="var(--sample-soft)" title="Scripted answer in no-account mode, not live Cortex output"><Bot className="w-3 h-3" aria-hidden />Sample AI response</Pill>;
+  return <span className="pill pill-saffron" title="Recorded in no-account mode, not live Cortex output"><Bot className="w-3 h-3" aria-hidden />Sample AI response</span>;
 }
 
-/** Shows where data came from; latency only when measured in live mode. */
+/** Where data came from; latency only when measured in Live mode. */
 export function SourceBadge({ p }: { p?: Provenance }) {
   if (!p) return null;
-  if (p.source === 'mock') return <Pill color="var(--muted)" bg="var(--surface-2)"><Database className="w-3 h-3" aria-hidden />Sample data</Pill>;
-  return (
-    <Pill color="var(--text-2)" bg="var(--surface-2)" title="Measured round trip from the app server to Snowflake">
-      <Timer className="w-3 h-3" aria-hidden />Live · {p.role}{p.latencyMs !== undefined ? ` · ${p.latencyMs.toLocaleString()} ms` : ''}
-    </Pill>
-  );
+  if (p.source === 'mock') return <span className="pill pill-plain"><Database className="w-3 h-3" aria-hidden />Sample data</span>;
+  return <span className="pill pill-sea" title="Round trip from the app server to Snowflake"><Timer className="w-3 h-3" aria-hidden />Live · {p.role}{p.latencyMs !== undefined ? ` · ${p.latencyMs.toLocaleString()} ms` : ''}</span>;
 }
 
-export function Thinking({ label = 'Thinking' }: { label?: string }) {
-  return <div className="thinking text-xs muted flex items-center gap-2" role="status"><span /><span /><span />{label}…</div>;
+export function Skeleton({ className = '' }: { className?: string }) { return <div className={`skeleton ${className}`} aria-hidden />; }
+
+export function PageSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-label={label} className="space-y-4">
+      <Skeleton className="h-8 w-72" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}</div>
+      <Skeleton className="h-80" />
+      <span className="sr-only">{label}…</span>
+    </div>
+  );
 }
 
 // Minimal markdown: headings by bold, lists, tables, bold/italic. Text is escaped by React.
@@ -105,27 +127,39 @@ export function Markdown({ text }: { text: string }) {
   return <div className="prose-ai text-sm leading-relaxed">{out}</div>;
 }
 
-export function AppetiteBadge({ a }: { a: Appetite }) {
-  const m = { IN: ['var(--positive)', 'In appetite'], REFER: ['var(--warning)', 'Refer'], OUT: ['var(--negative)', 'Out of appetite'] }[a];
-  return <Pill color={m[0]} bg={`color-mix(in srgb, ${m[0]} 14%, transparent)`}>{m[1]}</Pill>;
+export function AppetitePill({ a }: { a: Appetite }) {
+  const m = { IN: ['pill-sea', 'In appetite'], REFER: ['pill-amber', 'Refer'], OUT: ['pill-rust', 'Out of appetite'] }[a];
+  return <span className={`pill ${m[0]}`}><span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />{m[1]}</span>;
 }
 
-export function CompletenessBadge({ missing }: { missing: string[] }) {
+export function CompletenessPill({ missing }: { missing: string[] }) {
   return missing.length
-    ? <Pill color="var(--warning)" bg="color-mix(in srgb, var(--warning) 14%, transparent)" title={`Missing: ${missing.join(', ')}`}>Missing {missing.length}</Pill>
-    : <Pill color="var(--positive)" bg="color-mix(in srgb, var(--positive) 14%, transparent)">Complete</Pill>;
+    ? <span className="pill pill-amber" title={`Missing: ${missing.join(', ')}`}>Missing {missing.length}</span>
+    : <span className="pill pill-plain">Complete</span>;
 }
 
-export function FitBar({ value }: { value: number }) {
-  const color = value >= 75 ? 'var(--positive)' : value >= 50 ? 'var(--accent)' : value >= 30 ? 'var(--warning)' : 'var(--negative)';
+export const fitTone = (v: number) => (v >= 75 ? 'var(--sea)' : v >= 50 ? 'var(--saffron-ink)' : v >= 30 ? 'var(--amber)' : 'var(--rust)');
+
+export function FitMeter({ value, wide = false }: { value: number; wide?: boolean }) {
   return (
-    <div className="flex items-center gap-2 min-w-[92px]" title={`Fit score ${value.toFixed(1)} of 100`}>
-      <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}><div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} /></div>
-      <span className="text-xs font-semibold tabular w-8 text-right">{Math.round(value)}</span>
+    <div className={`flex items-center gap-2 ${wide ? 'w-full' : 'min-w-[96px]'}`} title={`Fit score ${value.toFixed(1)} of 100`}>
+      <div className="h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: 'var(--sheet-2)' }}>
+        <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${value}%`, background: fitTone(value) }} />
+      </div>
+      <span className="num text-[13px] font-semibold w-7 text-right" style={{ color: fitTone(value) }}>{Math.round(value)}</span>
     </div>
   );
 }
 
 export function ErrorNote({ error }: { error: string }) {
-  return <div role="alert" className="card p-4 text-sm" style={{ color: 'var(--negative)' }}><strong>Live request failed.</strong> {error} The app does not fall back to sample data in Live mode; switch to Sample in the header to use the bundled data.</div>;
+  return (
+    <div role="alert" className="sheet p-4 text-sm flex gap-3" style={{ borderColor: 'var(--rust)' }}>
+      <AlertTriangle className="w-5 h-5 shrink-0" style={{ color: 'var(--rust)' }} aria-hidden />
+      <div><strong style={{ color: 'var(--rust)' }}>Live request failed.</strong> {error} The app does not fall back to sample data in Live mode; switch to Sample in the top bar to use the bundled data.</div>
+    </div>
+  );
+}
+
+export function Empty({ title, children }: { title: string; children?: ReactNode }) {
+  return <div className="inset px-4 py-8 text-center"><div className="font-semibold">{title}</div>{children && <div className="text-sm mt-1" style={{ color: 'var(--ink-3)' }}>{children}</div>}</div>;
 }

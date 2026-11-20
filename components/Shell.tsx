@@ -1,87 +1,81 @@
 'use client';
 
-// App frame: navigation, the Sample/Live switch, the hosted-example notice, and the disclaimer.
-import { FileSearch, Inbox, Map, Menu, MessageSquare, ShieldCheck, X } from 'lucide-react';
+// App frame: marine top bar with tabs, environment badge, role chip, theme toggle; the hosted-example
+// notice; and the footer disclaimer. No sidebar: on phones the tabs scroll horizontally under the bar.
+import { FileSearch, Inbox, Map, MessageSquare, Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Wordmark } from '@/components/Brand';
 import { ModeChip } from '@/components/ModeChip';
 import { HOSTED_EXAMPLE } from '@/lib/hosted';
 
 export const REPO = 'https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence';
 const LAST = 'usi-last-submission';
 export const DEFAULT_SUBMISSION = 'SUB-1004';
+export const BUSINESS_DATE = '18 Nov 2026';
 export const rememberSubmission = (id: string) => window.localStorage.setItem(LAST, id);
 export const lastSubmission = () => (typeof window === 'undefined' ? DEFAULT_SUBMISSION : window.localStorage.getItem(LAST) ?? DEFAULT_SUBMISSION);
 
+function ThemeToggle() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => setDark(document.documentElement.dataset.theme === 'dark'), []);
+  const flip = () => { const t = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = t; window.localStorage.setItem('usi-theme', t); setDark(!dark); };
+  return (
+    <button onClick={flip} className="w-8 h-8 inline-flex items-center justify-center rounded-lg hover:bg-white/10" style={{ color: 'var(--bar-text)' }} aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}>
+      {dark ? <Sun className="w-4 h-4" aria-hidden /> : <Moon className="w-4 h-4" aria-hidden />}
+    </button>
+  );
+}
+
 export default function Shell({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
   const [last, setLast] = useState(DEFAULT_SUBMISSION);
   const pathname = usePathname();
-  useEffect(() => { setOpen(false); setLast(lastSubmission()); }, [pathname]);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    if (open) closeRef.current?.focus();
-    else if (wasOpen.current) toggleRef.current?.focus();
-    wasOpen.current = open;
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  useEffect(() => setLast(lastSubmission()), [pathname]);
   const NAV = [
-    { href: '/', label: 'Submission queue', icon: Inbox },
-    { href: `/submission/?id=${last}`, match: '/submission', label: 'Submission detail', icon: FileSearch },
+    { href: '/', label: 'Docket', icon: Inbox },
+    { href: `/submission/?id=${last}`, match: '/submission', label: 'Submission file', icon: FileSearch },
     { href: `/portfolio/?id=${last}`, match: '/portfolio', label: 'Portfolio fit', icon: Map },
-    { href: '/ask/', match: '/ask', label: 'Ask', icon: MessageSquare },
+    { href: '/ask/', match: '/ask', label: 'Ask the desk', icon: MessageSquare },
   ];
   const active = (n: (typeof NAV)[number]) => (n.href === '/' ? pathname === '/' : pathname.startsWith(n.match!));
 
   return (
-    <div className="min-h-screen flex">
-      <aside id="main-nav" className={`sidebar fixed inset-y-0 left-0 z-40 w-60 flex flex-col border-r md:translate-x-0 md:visible ${open ? 'translate-x-0 transition-transform' : '-translate-x-full invisible transition-[transform,visibility]'}`}
-        aria-label="Main navigation">
-        <div className="px-5 py-5 border-b flex items-center gap-3" style={{ borderColor: 'rgba(255,255,255,.08)' }}>
-          <div className="icon-tile w-9 h-9 rounded-xl flex items-center justify-center"><ShieldCheck className="w-4 h-4" aria-hidden /></div>
-          <div>
-            <div className="text-sm font-semibold leading-tight text-white">Submission Intelligence</div>
-            <div className="text-[11px] muted">Example on synthetic data</div>
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-30" style={{ background: 'var(--marine)' }}>
+        <div className="max-w-[1480px] mx-auto px-4 lg:px-6 flex items-center gap-6 h-[52px]">
+          <Link href="/" className="no-underline shrink-0" aria-label="Quorvane submission desk, docket"><Wordmark /></Link>
+          <nav className="hidden md:flex items-center gap-6 h-full" aria-label="Main">
+            {NAV.map((n) => <Link key={n.label} href={n.href} className="tab-link" aria-current={active(n) ? 'page' : undefined}><n.icon className="w-4 h-4" aria-hidden />{n.label}</Link>)}
+          </nav>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <ModeChip />
+            <span className="hidden lg:inline-flex items-center gap-2 rounded-full pl-1 pr-3 py-1 text-xs" style={{ background: 'var(--marine-2)', color: 'var(--bar-text)' }} title="Fictional persona for this example">
+              <span className="w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-semibold" style={{ background: 'var(--saffron)', color: '#0F2A3A' }}>MO</span>
+              M. Okafor · Property UW
+            </span>
+            <ThemeToggle />
           </div>
-          <button ref={closeRef} className="md:hidden ml-auto btn !px-2" onClick={() => setOpen(false)} aria-label="Close menu"><X className="w-4 h-4" /></button>
         </div>
-        <nav className="flex-1 px-3 py-3 space-y-1">
-          {NAV.map((n) => (
-            <Link key={n.label} href={n.href} aria-current={active(n) ? 'page' : undefined}
-              className="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium no-underline">
-              <n.icon className="w-4 h-4" aria-hidden />{n.label}
-            </Link>
-          ))}
+        <nav className="md:hidden flex gap-5 px-4 overflow-x-auto relative border-t" style={{ borderColor: 'rgba(255,255,255,.08)' }} aria-label="Main">
+          {NAV.map((n) => <Link key={n.label} href={n.href} className="tab-link !h-11" aria-current={active(n) ? 'page' : undefined}><n.icon className="w-4 h-4" aria-hidden />{n.label}</Link>)}
         </nav>
-        <div className="px-4 py-4 border-t text-[11px] muted leading-relaxed" style={{ borderColor: 'rgba(255,255,255,.08)' }}>
-          Synthetic data and illustrative logic. Not production, underwriting, regulatory, or compliance advice. Every decision stays with the underwriter.
-        </div>
-      </aside>
-
-      <div className="flex-1 md:ml-60 min-w-0">
-        {HOSTED_EXAMPLE && (
-          <div role="note" className="px-4 md:px-8 py-2 text-xs border-b" style={{ background: 'var(--sample-soft)', borderColor: 'var(--border)', color: 'var(--text-2)' }}>
-            <strong style={{ color: 'var(--text)' }}>Sample data mode.</strong> Runs entirely in your browser on synthetic data captured from a live Snowflake run; no account needed. AI answers are recorded samples, not live Cortex output.{' '}
+      </header>
+      {HOSTED_EXAMPLE && (
+        <div role="note" className="text-xs border-b" style={{ background: 'color-mix(in srgb, var(--saffron) 14%, var(--paper))', borderColor: 'var(--rule)', color: 'var(--ink-2)' }}>
+          <div className="max-w-[1480px] mx-auto px-4 lg:px-6 py-2">
+            <strong style={{ color: 'var(--ink)' }}>Hosted example, Sample mode.</strong> Runs in your browser on synthetic data captured from a live Snowflake run. AI drafts are recorded samples, not live Cortex output.{' '}
             <a href={REPO} className="underline underline-offset-2">Run it in your own account</a>
           </div>
-        )}
-        <header className="glass sticky top-0 z-30 flex items-center gap-3 px-4 md:px-8 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <button ref={toggleRef} className="md:hidden btn !px-2" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="main-nav"><Menu className="w-4 h-4" /></button>
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">Northwind Specialty · Commercial lines</div>
-            <div className="text-xs muted truncate">Underwriting desk · business date 18 Nov 2026</div>
-          </div>
-          <div className="ml-auto"><ModeChip /></div>
-        </header>
-        <main key={pathname} className="fade-up px-4 md:px-8 py-6 max-w-[1400px]">{children}</main>
-      </div>
-      {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setOpen(false)} aria-hidden />}
+        </div>
+      )}
+      <main key={pathname} className="fade-in flex-1 w-full max-w-[1480px] mx-auto px-4 lg:px-6 py-5">{children}</main>
+      <footer className="border-t text-xs" style={{ borderColor: 'var(--rule)', color: 'var(--ink-3)' }}>
+        <div className="max-w-[1480px] mx-auto px-4 lg:px-6 py-4 flex flex-wrap gap-x-6 gap-y-1 justify-between">
+          <span>Quorvane is a fictional desk. Synthetic data and illustrative logic only: not production, underwriting, regulatory, or compliance advice. Every decision stays with the underwriter.</span>
+          <a href={REPO} className="underline underline-offset-2">Source and setup guide</a>
+        </div>
+      </footer>
     </div>
   );
 }

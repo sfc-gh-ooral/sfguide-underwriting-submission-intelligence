@@ -6,13 +6,14 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_SUBMISSION, rememberSubmission } from '@/components/Shell';
-import { Card, ErrorNote, Kpi, PoweredBy, SourceBadge, Thinking, money } from '@/components/ui';
+import { ChevronLeft } from 'lucide-react';
+import { Empty, ErrorNote, Kpi, PageSkeleton, Panel, PoweredBy, SourceBadge, money } from '@/components/ui';
 import { useAsync } from '@/components/useAsync';
 import { data } from '@/lib/client';
 import type { Portfolio } from '@/lib/types';
 
 export default function Page() {
-  return <Suspense fallback={<Thinking label="Loading portfolio" />}><PortfolioFit /></Suspense>;
+  return <Suspense fallback={<PageSkeleton label="Loading portfolio" />}><PortfolioFit /></Suspense>;
 }
 
 function PortfolioFit() {
@@ -21,44 +22,62 @@ function PortfolioFit() {
   const p = useAsync(() => data.portfolio(id), [id]);
   const d = useAsync(() => data.detail(id), [id]);
   if (p.error || d.error) return <ErrorNote error={(p.error ?? d.error)!} />;
-  if (!p.data || !d.data) return p.loading || d.loading ? <Thinking label="Loading portfolio exposure" /> : <div className="card p-4 text-sm">No locations for {id}.</div>;
+  if (!p.data || !d.data) return p.loading || d.loading ? <PageSkeleton label="Loading portfolio exposure" /> : <Empty title={`No locations for ${id}`} />;
   const t = p.data.totals;
   const coastal = p.data.locations.filter((l) => l.coastal);
   const delta = +(t.zoneShareAfter - t.zoneShareBefore).toFixed(1);
+  const maxShare = Math.max(t.zoneShareAfter, 1) * 1.15;
 
   return (
     <div className="space-y-4">
       <div>
-        <div className="text-xs muted mb-1"><Link href="/" className="underline">Queue</Link> / <Link href={`/submission/?id=${id}`} className="underline">{id}</Link> / Portfolio fit</div>
-        <h1 className="page-title">{d.data.row.insured}: portfolio fit</h1>
-        <div className="flex flex-wrap gap-2 mt-2"><SourceBadge p={p.data} /><PoweredBy>Geospatial: ST_DISTANCE, ST_DWITHIN, H3</PoweredBy></div>
+        <Link href={`/submission/?id=${id}`} className="inline-flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--ink-3)' }}><ChevronLeft className="w-3.5 h-3.5" aria-hidden />{id} file</Link>
+        <div className="flex flex-wrap items-end justify-between gap-3 mt-1">
+          <div className="min-w-0">
+            <div className="label">Portfolio fit · accumulation check</div>
+            <h1 className="text-[28px] font-semibold tracking-tight leading-tight">{d.data.row.insured}</h1>
+            <p className="text-sm" style={{ color: 'var(--ink-2)' }}>Where this schedule lands against the book we already write, and what it does to coastal concentration.</p>
+          </div>
+          <div className="flex flex-wrap gap-2"><SourceBadge p={p.data} /><PoweredBy>Geospatial: ST_DISTANCE, ST_DWITHIN, H3</PoweredBy></div>
+        </div>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi label="Submission TIV" value={money(t.submissionTiv)} sub={`${p.data.locations.length} locations, ${coastal.length} coastal`} />
-        <Kpi label="Coastal TIV added" value={money(t.submissionCoastalTiv)} sub="Within 16 km of the coast (FL, TX, LA)" />
-        <Kpi label="Portfolio TIV within 25 km" value={money(t.nearbyTiv)} sub="Summed around each coastal location" />
-        <Kpi label="Coastal share of portfolio" value={`${t.zoneShareAfter}%`} sub={`${t.zoneShareBefore}% today · ${delta >= 0 ? '+' : ''}${delta} pts if bound`} />
+        <Kpi label="Submission TIV" value={t.submissionTiv} format={money} sub={`${p.data.locations.length} locations, ${coastal.length} coastal`} />
+        <Kpi label="Coastal TIV added" value={t.submissionCoastalTiv} format={money} tone={t.submissionCoastalTiv > 0 ? 'rust' : 'sea'} sub="Within 16 km of the coast" />
+        <Kpi label="Book TIV within 25 km" value={t.nearbyTiv} format={money} sub="Around each submitted location" />
+        <Kpi label="Coastal share if bound" value={t.zoneShareAfter} format={(n) => `${n.toFixed(1)}%`} tone={delta > 0.5 ? 'rust' : undefined} sub={`${t.zoneShareBefore}% today · ${delta >= 0 ? '+' : ''}${delta} pts`} />
       </div>
-      <div className="grid xl:grid-cols-3 gap-4">
-        <Card className="xl:col-span-2 min-w-0" title="Exposure map" right={<span className="text-[11px] muted">Circles: portfolio TIV by H3 cell (res 5) · diamonds: this submission</span>}>
+      <div className="grid xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] gap-4 items-start">
+        <Panel kicker="Exposure map" title="Submission against the existing book" right={<span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>Dots: book TIV by H3 cell (res 5) · pins: this submission</span>}>
           <ExposureMap p={p.data} />
-        </Card>
-        <Card className="min-w-0" title="Concentration impact">
-          {coastal.length ? (
-            <p className="text-sm text-2 mb-3">{coastal.length} of {p.data.locations.length} locations sit within 16 km of the coast, adding {money(t.submissionCoastalTiv)} of coastal TIV where the portfolio already holds {money(t.nearbyTiv)} within 25 km. On this synthetic data set, binding it moves the coastal share of total insured value from {t.zoneShareBefore}% to {t.zoneShareAfter}%.</p>
-          ) : <p className="text-sm text-2 mb-3">No location is within 16 km of the coast, so this risk adds no coastal accumulation. Coastal share stays near {t.zoneShareBefore}%.</p>}
-          <div className="relative overflow-x-auto -mx-4">
-            <table className="data-table min-w-[360px]">
-              <thead><tr><th>Loc</th><th>City</th><th className="text-right">TIV</th><th className="text-right">Coast</th><th className="text-right">Portfolio ≤25 km</th></tr></thead>
-              <tbody>{p.data.locations.map((l) => (
-                <tr key={l.loc}><td>{l.loc}</td><td className="text-xs">{l.city}, {l.state}<div className="muted text-[10px]">{l.construction} · {l.yearBuilt}</div></td>
-                  <td className="text-right tabular">{money(l.tiv)}</td>
-                  <td className="text-right tabular" style={{ color: l.coastal ? 'var(--negative)' : undefined }}>{l.kmToCoast} km</td>
-                  <td className="text-right tabular">{money(l.nearbyTiv)}<div className="muted text-[10px]">{l.nearbyPolicies} policies</div></td></tr>
-              ))}</tbody>
-            </table>
-          </div>
-        </Card>
+        </Panel>
+        <div className="space-y-4 min-w-0">
+          <Panel kicker="Concentration impact" title={coastal.length ? `${coastal.length} of ${p.data.locations.length} locations are coastal` : 'No coastal accumulation'}>
+            <p className="text-sm mb-3" style={{ color: 'var(--ink-2)' }}>{coastal.length
+              ? <>This schedule adds <strong className="num">{money(t.submissionCoastalTiv)}</strong> of coastal TIV where the book already holds <strong className="num">{money(t.nearbyTiv)}</strong> within 25 km. On this synthetic data set, binding it moves the coastal share of total insured value from {t.zoneShareBefore}% to {t.zoneShareAfter}%.</>
+              : <>No location is within 16 km of the coast, so the coastal share stays near {t.zoneShareBefore}%.</>}</p>
+            <div className="space-y-2" aria-label="Coastal share before and after binding">
+              {[['Today', t.zoneShareBefore, 'var(--sea)'], ['If bound', t.zoneShareAfter, delta > 0.5 ? 'var(--rust)' : 'var(--sea)']].map(([l, v, c]) => (
+                <div key={l as string} className="grid grid-cols-[64px_1fr_52px] items-center gap-2 text-xs">
+                  <span style={{ color: 'var(--ink-3)' }}>{l}</span>
+                  <span className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--sheet-2)' }}><span className="block h-full rounded-full transition-[width] duration-700" style={{ width: `${((v as number) / maxShare) * 100}%`, background: c as string }} /></span>
+                  <span className="num text-right font-semibold">{(v as number).toFixed(1)}%</span>
+                </div>))}
+            </div>
+          </Panel>
+          <Panel pad={false} kicker="Schedule" title="Locations">
+            <div className="relative overflow-x-auto">
+              <table className="dtable min-w-[380px]">
+                <thead><tr><th>#</th><th>City</th><th className="!text-right">TIV</th><th className="!text-right">Coast</th><th className="!text-right">Book ≤25 km</th></tr></thead>
+                <tbody>{p.data.locations.map((l) => (
+                  <tr key={l.loc}><td className="num">{l.loc}</td><td className="text-xs">{l.city}, {l.state}<div style={{ color: 'var(--ink-3)' }}>{l.construction} · {l.yearBuilt}</div></td>
+                    <td className="text-right num">{money(l.tiv)}</td>
+                    <td className="text-right">{l.coastal ? <span className="pill pill-rust num">{l.kmToCoast} km</span> : <span className="num">{l.kmToCoast} km</span>}</td>
+                    <td className="text-right num">{money(l.nearbyTiv)}<div className="text-[10.5px]" style={{ color: 'var(--ink-3)' }}>{l.nearbyPolicies} policies</div></td></tr>))}</tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
       </div>
     </div>
   );
@@ -85,26 +104,26 @@ function ExposureMap({ p }: { p: Portfolio }) {
         <button aria-pressed={zoom === 'risk'} onClick={() => setZoom('risk')} className="px-3 py-1 text-xs font-medium">Around this risk</button>
         <button aria-pressed={zoom === 'all'} onClick={() => setZoom('all')} className="px-3 py-1 text-xs font-medium">Whole portfolio</button>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-lg" style={{ background: 'var(--surface-2)' }} role="img" aria-label="Map of portfolio exposure and submission locations">
-        <polyline fill="none" stroke="var(--chart-1)" strokeWidth={2} strokeDasharray="5 4" points={p.coast.map(([la, lo]) => `${X(lo)},${Y(la)}`).join(' ')} />
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded-lg" style={{ background: 'var(--sheet-2)' }} role="img" aria-label="Map of portfolio exposure and submission locations">
+        <polyline fill="none" stroke="var(--ink-3)" strokeWidth={1.6} strokeDasharray="6 5" points={p.coast.map(([la, lo]) => `${X(lo)},${Y(la)}`).join(' ')} />
         {p.cells.filter((c) => inBox(c.lat, c.lon)).map((c, i) => (
-          <circle key={i} cx={X(c.lon)} cy={Y(c.lat)} r={3 + 22 * Math.sqrt(c.tiv / maxTiv) * (zoom === 'risk' ? 1.6 : 1)} fill="var(--chart-4)" fillOpacity={0.28} stroke="var(--chart-4)" strokeOpacity={0.6}>
+          <circle key={i} cx={X(c.lon)} cy={Y(c.lat)} r={3 + 22 * Math.sqrt(c.tiv / maxTiv) * (zoom === 'risk' ? 1.6 : 1)} fill="var(--saffron)" fillOpacity={0.3} stroke="var(--saffron-ink)" strokeOpacity={0.5}>
             <title>{`${c.locations} portfolio locations · ${money(c.tiv)} TIV`}</title>
           </circle>
         ))}
         {p.locations.map((l) => (
           <g key={l.loc} transform={`translate(${X(l.lon)},${Y(l.lat)})`}>
-            <rect x={-7} y={-7} width={14} height={14} transform="rotate(45)" fill={l.coastal ? 'var(--negative)' : 'var(--positive)'} stroke="#fff" strokeWidth={1.5} />
-            <text x={10} y={4} fontSize={12} fill="var(--text)" fontWeight={600}>{l.loc}</text>
+            <path d="M0 0 C-7 -9 -9 -13 -9 -17 A9 9 0 1 1 9 -17 C9 -13 7 -9 0 0Z" fill={l.coastal ? 'var(--rust)' : 'var(--sea)'} stroke="var(--sheet)" strokeWidth={1.5} />
+            <text x={0} y={-13.5} fontSize={10} textAnchor="middle" fill="var(--sheet)" fontWeight={700}>{l.loc}</text>
             <title>{`Location ${l.loc}: ${l.city} · ${money(l.tiv)} · ${l.kmToCoast} km to coast`}</title>
           </g>
         ))}
       </svg>
-      <div className="flex flex-wrap gap-4 text-[11px] muted mt-2">
-        <span><span style={{ color: 'var(--chart-1)' }}>- - -</span> Coastline (simplified)</span>
-        <span><span style={{ color: 'var(--chart-4)' }}>●</span> Existing portfolio</span>
-        <span><span style={{ color: 'var(--negative)' }}>◆</span> Coastal location</span>
-        <span><span style={{ color: 'var(--positive)' }}>◆</span> Inland location</span>
+      <div className="flex flex-wrap gap-4 text-[11px] mt-2" style={{ color: 'var(--ink-3)' }}>
+        <span><span style={{ color: 'var(--ink-3)' }}>- - -</span> Coastline (simplified)</span>
+        <span><span style={{ color: 'var(--saffron)' }}>●</span> Existing book</span>
+        <span><span style={{ color: 'var(--rust)' }}>⬤</span> Coastal location (≤16 km)</span>
+        <span><span style={{ color: 'var(--sea)' }}>⬤</span> Inland location</span>
       </div>
     </div>
   );

@@ -6,17 +6,19 @@ This is a Snowflake example on **synthetic data**: a Next.js app with a no-accou
 
 **[Try the hosted example](https://sfc-gh-ooral.github.io/sfguide-underwriting-submission-intelligence/try/)** · **[Guide](https://sfc-gh-ooral.github.io/sfguide-underwriting-submission-intelligence/)**
 
+The app is branded **Quorvane Submission Desk**, a fictional commercial property desk; see [docs/DESIGN.md](docs/DESIGN.md) for the brand, palette, typography and layout.
+
 > Synthetic data and illustrative logic only. This is not underwriting, regulatory, or compliance advice, and it is not a production system. Scores and AI drafts are suggestions for an underwriter to review.
 
 ## What it does
 
 | Screen | What you see | Snowflake capability (Live mode) |
 | --- | --- | --- |
-| Submission queue | KPIs, daily volume, and open submissions ranked by fit score (or first in, first out), with completeness and appetite badges | `AI_EXTRACT`, `AI_CLASSIFY`, SQL view `SUBMISSION_SCORES` |
-| Submission detail | The application page with the source of each extracted field highlighted, missing items, the appetite check with guide passages, a loss-run chart, the broker email, an AI memo draft, and decisions: request info (AI-drafted email), decline with reason, or move to quote | `AI_PARSE_DOCUMENT`, `AI_EXTRACT` with `citation => TRUE` and table extraction, Cortex Search, `AI_COMPLETE`, `APP.DECISIONS` |
+| Docket | Morning docket: six KPI tiles with counters, daily arrivals, the appetite mix, and a split pane with open submissions ranked by fit score (or first in, first out), search and filters, and a preview of each file's fit components | `AI_EXTRACT`, `AI_CLASSIFY`, SQL view `SUBMISSION_SCORES` |
+| Submission file | The application page with the source of each extracted field highlighted, missing items, the appetite check with guide passages, a loss-run chart, the broker email, an AI memo draft, and decisions: request info (AI-drafted email), decline with reason, or move to quote | `AI_PARSE_DOCUMENT`, `AI_EXTRACT` with `citation => TRUE` and table extraction, Cortex Search, `AI_COMPLETE`, `APP.DECISIONS` |
 | Portfolio fit | The submission's locations on a longitude/latitude map against existing exposure by H3 cell and the coastline, distance to coast, portfolio TIV within 25 km, and the change in coastal share | `ST_DISTANCE`, `ST_DWITHIN`, `H3_LATLNG_TO_CELL` |
 | Ask | Plain-language questions such as "Show restaurants in Florida with TIV over $5M submitted this month", with the results table and generated SQL | Cortex Agent with Cortex Analyst on the `SUBMISSIONS_SV` semantic view, and Cortex Search |
-| Sample / Live switch | Header switch that always shows the mode. Sample keeps the bundled data even with a connection; Live with no connection shows setup steps. AI buttons show staged progress steps; in Sample mode a recorded answer arrives after a few seconds | `/api/mode` reports whether `.env.local` is configured. Live calls show measured latency and never fall back to sample data |
+| Sample / Live switch | Environment badge in the top bar that always shows the mode. Sample keeps the bundled data even with a connection; Live with no connection shows setup steps. AI drafts show staged progress steps, then reveal word by word with source chips; in Sample mode a recorded answer arrives after a few seconds, labeled Sample AI response | `/api/mode` reports whether `.env.local` is configured. Live calls show measured latency and never fall back to sample data |
 
 ### Story on this synthetic data set
 
@@ -53,7 +55,7 @@ To regenerate the synthetic data and documents (same seed, same files): `npm run
 
 ## Live mode: deploy to your account
 
-1. **Run the setup.** Open a Snowsight SQL worksheet, paste [`sql/setup.sql`](sql/setup.sql), and run all. It loads the synthetic PDFs and CSVs straight from this public repository through a Git repository clone, so there's no upload step, and then runs the document AI over all 299 PDFs. It took about 3 minutes in our test.
+1. **Run the setup.** Open a Snowsight SQL worksheet, paste [`sql/setup.sql`](sql/setup.sql), and run all. It loads the synthetic PDFs and CSVs straight from this public repository through a Git repository clone, so there's no upload step, and then runs the document AI over all 299 PDFs. It took 3 minutes 6 seconds (186 s) in our latest test.
 2. **Create a key pair** for the user that ran setup (setup grants that user `USI_DEMO_ROLE`). Keep the key outside the repository:
 
    ```bash
@@ -95,13 +97,14 @@ To refresh the Sample-mode files from your own Live run: start `npm run dev` wit
 
 ### Expected cost and time
 
-- **Setup:** 3 minutes 13 seconds from a clean account in our test (November 2026), most of it the document AI over 299 PDFs. The warehouse ran for about that long, so expect roughly **0.1 warehouse credits** on XSMALL for setup (an estimate from measured run time: metering history lagged by hours when we checked).
+- **Setup:** 3 minutes 6 seconds (186 s) from a clean account in our latest test (20 November 2026; 3 minutes 13 seconds in an earlier run), most of it the document AI over 299 PDFs. The warehouse ran for about that long, so expect roughly **0.1 warehouse credits** on XSMALL for setup (an estimate from measured run time: metering history lagged by hours when we checked).
 - **AI credits:** `AI_PARSE_DOCUMENT`, `AI_EXTRACT`, `AI_CLASSIFY`, `AI_COMPLETE`, Cortex Search, Cortex Analyst, and Cortex Agents are billed separately from the warehouse, by pages or tokens. Setup processes 150 application pages twice (parse and extract), 149 loss-run pages, and 150 classifications. Check actual usage in `SNOWFLAKE.ACCOUNT_USAGE.CORTEX_FUNCTIONS_USAGE_HISTORY` and `CORTEX_AGENT_USAGE_HISTORY` (they can lag a few hours) and the [Service Consumption Table](https://www.snowflake.com/legal-files/CreditConsumptionTable.pdf) for rates. Running `npm run capture-sample` adds about 270 `AI_COMPLETE` drafts.
 - **Measured latency** in our test, from the app server on XSMALL:
   - Queue: under 1 s warm. Submission detail (including a Cortex Search call): about 1–2 s. Portfolio fit: about 0.5 s.
   - Memo draft (`AI_COMPLETE`): median 6.8 s (5.7–11.7 s over 138 drafts).
   - Broker email draft: median 4.5 s (3.3–8.8 s over 136 drafts).
   - Ask (Cortex Agent): 10–20 s over four questions.
+  - Spot checks on 20 November 2026: queue 3.7 s cold, memo 9.1 s, broker email 6.0 s, Ask 19.6 s.
 
   Yours will differ. The app shows the measured time on each live response.
 
@@ -140,7 +143,7 @@ Out-of-appetite submissions are capped at 15. The weights are illustrative; see 
 
 ```text
 app/                 Next.js App Router pages (queue, submission, portfolio, ask) and the /api/data route
-components/          Shell (navigation, Sample/Live switch), reasoning steps, UI pieces
+components/          Shell (top bar, tabs, environment badge, theme), Brand (logo), reasoning and streaming AI drafts, UI kit
 lib/types.ts         Data interface used by every screen
 lib/mock-data.ts     Sample mode: captured results, in the browser (also the hosted /try/ example)
 lib/live-data.ts     Live mode: Snowflake queries and AI calls (server only)
@@ -149,7 +152,8 @@ scripts/             generate-data.mjs (seeded data and PDFs), capture-sample.mj
 sql/                 setup.sql, cleanup.sql
 data/                Synthetic CSVs, PDFs, and the data README
 public/docs, public/mock   Page renders for citation highlights, and captured Sample-mode results
-docs/                GitHub Pages guide, screenshots, and the /try/ static example
+docs/                GitHub Pages guide, DESIGN.md, fonts (IBM Plex, OFL), screenshots, and the /try/ static example
+scripts/check-contrast.mjs   Checks the design tokens against WCAG AA
 ```
 
 ## License and disclaimer

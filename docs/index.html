@@ -1,118 +1,167 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Underwriting Submission Intelligence · Snowflake example</title>
-<meta name="description" content="Help commercial underwriters clear submission backlogs by extracting broker submissions, checking appetite and completeness, and prioritizing the best-fit risks. A Snowflake example on synthetic data.">
+<meta name="description" content="Help commercial underwriters clear submission backlogs: extract broker submissions, check appetite and completeness, and work the best-fit risks first. A Snowflake example on synthetic data.">
+<meta name="color-scheme" content="light dark">
 <style>
+@font-face { font-family: "Plex Sans"; src: url(fonts/plex-sans.woff2) format("woff2"); font-weight: 100 700; font-display: swap; }
+@font-face { font-family: "Plex Mono"; src: url(fonts/plex-mono-500.woff2) format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Plex Serif"; src: url(fonts/plex-serif-italic.woff2) format("woff2"); font-style: italic; font-display: swap; }
 :root {
-  color-scheme: light dark;
-  --bg: light-dark(#f6f7fb, #0d1220);
-  --card: light-dark(#ffffff, #141b2d);
-  --card-2: light-dark(#f0f2f8, #1b2439);
-  --border: light-dark(#dde1ec, #2a3550);
-  --text: light-dark(#141a2e, #e8ecf6);
-  --text-2: light-dark(#4a5373, #aab3cc);
-  --muted: light-dark(#6b7493, #8590ad);
-  --accent: light-dark(#1a6fd1, #5aa7f5);
-  --accent-soft: light-dark(rgba(26,111,209,.1), rgba(90,167,245,.14));
-  --warn-soft: light-dark(#fff6e6, #2b2414);
-  --warn-border: light-dark(#f0c36d, #6b5420);
+  --paper: #F6F2EA; --sheet: #FFFDF8; --sheet-2: #EFE9DD; --rule: #DDD4C3;
+  --ink: #0F2A3A; --ink-2: #3D5160; --ink-3: #56656F; --marine: #0F2A3A; --marine-2: #17384B;
+  --saffron: #E0A33A; --saffron-ink: #8A5A0B; --sea: #1F6F66; --amber: #8F5400; --rust: #A3341F; --on-sea: #FFFDF8;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --paper: #0E1A21; --sheet: #14242D; --sheet-2: #1B2F3A; --rule: #2A4250; --ink: #ECE6DA; --ink-2: #B5C1C8; --ink-3: #8EA0AA;
+    --marine: #0A151B; --marine-2: #12242E; --saffron: #E8B054; --saffron-ink: #F0C374; --sea: #5CC2B4; --amber: #F2B45A; --rust: #F08A73; --on-sea: #0E1A21; }
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
-a { color: var(--accent); }
-img, svg { max-width: 100%; height: auto; }
-.wrap { max-width: 1080px; width: 100%; margin: 0 auto; padding: 0 clamp(16px, 4vw, 28px); }
-header.top { border-bottom: 1px solid var(--border); background: var(--card); }
-header.top .wrap { display: flex; align-items: center; gap: 12px; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
-.mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; }
-.brand { font-weight: 650; }
-.brand small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
-nav.links { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
-nav.links a { text-decoration: none; color: var(--text-2); }
-nav.links a:hover { color: var(--accent); }
-.hero { padding-top: clamp(36px, 7vw, 72px); padding-bottom: 28px; }
-.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
-h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.15; margin: 10px 0 16px; letter-spacing: -.01em; }
-.lede { font-size: clamp(17px, 2.2vw, 19px); color: var(--text-2); max-width: 760px; margin: 0 0 24px; }
-.cta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
-.btn { display: inline-block; padding: 10px 16px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
-.fact { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
-.fact b { display: block; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.note { background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 10px; padding: 12px 16px; font-size: 14px; margin: 22px 0 0; }
-section { padding: 44px 0; border-top: 1px solid var(--border); }
-h2 { font-size: clamp(24px, 3.4vw, 30px); margin: 0 0 10px; }
-h3 { font-size: 18px; margin: 0 0 6px; }
-.sub { color: var(--text-2); max-width: 760px; margin: 0 0 24px; }
-.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-.card p { margin: 0; color: var(--text-2); font-size: 15px; }
-figure { margin: 0 0 34px; }
-figure img { display: block; width: 100%; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
-figcaption { margin-top: 10px; font-size: 15px; color: var(--text-2); }
-figcaption .cap { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 9px; margin-right: 6px; }
-.step { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
-.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; align-items: start; }
-.table-wrap { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { background: var(--card-2); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
-code { background: var(--card-2); padding: 1px 5px; border-radius: 4px; }
-pre { background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 0 0 14px; }
-pre code { background: none; padding: 0; }
-ul { padding-left: 20px; }
-li { margin: 4px 0; }
-footer { border-top: 1px solid var(--border); padding: 28px 0 44px; color: var(--muted); font-size: 14px; }
-@media (max-width: 560px) { nav.links { margin-left: 0; width: 100%; gap: 12px; } }
+html { overflow-x: clip; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.6 "Plex Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+.mono { font-family: "Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.label { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.stamp { font-family: "Plex Serif", Georgia, serif; font-style: italic; color: var(--saffron-ink); }
+
+/* Top bar, same marine bar as the app */
+.bar { background: var(--marine); color: #F6F2EA; position: sticky; top: 0; z-index: 10; }
+.bar .wrap { display: flex; align-items: center; gap: 24px; height: 56px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
+.brand b { font-weight: 600; font-size: 15px; }
+.brand small { display: block; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #C9D3D8; }
+.bar nav { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+.bar nav a { color: #C9D3D8; text-decoration: none; }
+.bar nav a:hover { color: #F6F2EA; }
+
+/* Hero: editorial case-file layout, left-aligned copy with a docket card beside it */
+.hero { padding: 56px 0 40px; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in srgb, var(--rule) 50%, transparent) 31px 32px); }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: center; }
+.hero h1 { font-size: clamp(34px, 5vw, 52px); line-height: 1.08; letter-spacing: -.02em; margin: 10px 0 18px; font-weight: 600; }
+.hero h1 em { font-style: normal; box-shadow: inset 0 -.32em 0 color-mix(in srgb, var(--saffron) 45%, transparent); }
+.hero p.lede { font-size: 18px; color: var(--ink-2); margin: 0 0 24px; max-width: 34em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; padding: 11px 18px; font-weight: 600; font-size: 15px; text-decoration: none; border: 1px solid var(--rule); background: var(--sheet); }
+.btn.primary { background: var(--sea); border-color: var(--sea); color: var(--on-sea); }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 32px; border-top: 1px solid var(--rule); }
+.facts div { padding: 14px 16px 0 0; min-width: 0; }
+.facts dd { margin: 4px 0 0; font-size: 14px; color: var(--ink-2); }
+.docket { background: var(--sheet); border: 1px solid var(--rule); border-radius: 16px; box-shadow: 0 18px 40px rgba(15, 42, 58, .12); overflow: hidden; min-width: 0; }
+.docket header { padding: 14px 18px; border-bottom: 1px solid var(--rule); display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.docket ol { list-style: none; margin: 0; padding: 0; }
+.docket li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 18px; border-bottom: 1px solid var(--rule); font-size: 14px; }
+.docket li:last-child { border-bottom: 0; }
+.docket li.top { background: color-mix(in srgb, var(--saffron) 11%, var(--sheet)); box-shadow: inset 3px 0 0 var(--saffron); }
+.docket .who { min-width: 0; } .docket .who b { display: block; font-weight: 600; } .docket .who span { color: var(--ink-3); font-size: 12.5px; }
+.score { font-family: "Plex Mono", monospace; font-weight: 500; font-size: 18px; }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 600; margin-left: 6px; white-space: nowrap; }
+.p-sea { color: var(--sea); background: color-mix(in srgb, var(--sea) 12%, var(--sheet)); }
+.p-amber { color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, var(--sheet)); }
+.p-rust { color: var(--rust); background: color-mix(in srgb, var(--rust) 12%, var(--sheet)); }
+
+.note { margin: 0 0 8px; padding: 14px 18px; border-left: 3px solid var(--saffron); background: var(--sheet); border-radius: 0 10px 10px 0; font-size: 14.5px; color: var(--ink-2); }
+section { padding: 56px 0; }
+section + section { border-top: 1px solid var(--rule); }
+h2 { font-size: 30px; letter-spacing: -.015em; line-height: 1.2; margin: 6px 0 14px; font-weight: 600; }
+.intro { color: var(--ink-2); max-width: 46em; margin: 0 0 28px; }
+.who-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; padding: 20px; min-width: 0; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--ink-2); font-size: 15px; }
+
+/* Walkthrough: alternating case-file entries */
+.step { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px; align-items: center; margin: 0 0 44px; }
+.step:nth-of-type(even) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+.step:nth-of-type(even) figure { order: 2; }
+.step figure { margin: 0; min-width: 0; }
+.step img { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid var(--rule); box-shadow: 0 10px 28px rgba(15, 42, 58, .1); }
+.step figcaption { font-size: 13px; color: var(--ink-3); margin-top: 8px; }
+.step h3 { font-size: 22px; margin: 4px 0 8px; letter-spacing: -.01em; }
+.step p { margin: 0 0 10px; color: var(--ink-2); }
+.cap { display: inline-block; font-size: 12px; font-weight: 600; color: var(--saffron-ink); border: 1px dashed color-mix(in srgb, var(--saffron-ink) 45%, transparent); border-radius: 6px; padding: 2px 8px; }
+.num { font-family: "Plex Mono", monospace; color: var(--saffron-ink); font-size: 13px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.tbl { overflow-x: auto; position: relative; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { background: var(--sheet-2); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); }
+tr:last-child td { border-bottom: 0; }
+td:nth-child(2) { white-space: nowrap; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+pre { background: var(--marine); color: #F6F2EA; border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 13px/1.6 "Plex Mono", monospace; }
+code { font-family: "Plex Mono", monospace; font-size: .92em; }
+ol.steps { padding-left: 1.2em; color: var(--ink-2); } ol.steps li { margin: 6px 0; }
+blockquote { margin: 0 0 12px; padding: 14px 18px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; font-style: italic; color: var(--ink-2); }
+footer { background: var(--marine); color: #C9D3D8; font-size: 14px; padding: 32px 0; }
+footer a { color: #F6F2EA; }
+
+@media (max-width: 900px) {
+  .hero .wrap, .step, .step:nth-of-type(even), .two, .who-grid { grid-template-columns: minmax(0, 1fr); }
+  .step:nth-of-type(even) figure { order: 0; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bar nav { display: none; }
+}
+@media (max-width: 480px) {
+  .wrap { padding: 0 16px; }
+  .hero { padding-top: 32px; }
+  td:nth-child(2) { white-space: normal; }
+  .docket li { grid-template-columns: 22px minmax(0, 1fr) auto; padding: 10px 12px; }
+}
 </style>
 </head>
 <body>
-
-<header class="top">
+<header class="bar">
   <div class="wrap">
-    <div class="mark" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-    </div>
-    <div class="brand">Underwriting Submission Intelligence<small>A Snowflake example on synthetic data</small></div>
-    <nav class="links" aria-label="Page sections">
-      <a href="#walkthrough">Walkthrough</a>
-      <a href="#how-it-works">How it works</a>
-      <a href="#get-started">Get started</a>
-      <a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">Repository</a>
-    </nav>
+    <a class="brand" href="./">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#17384B"/><path d="M9 9l7 6 7-6" fill="none" stroke="#E0A33A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 19h14M9 23h10" stroke="#F6F2EA" stroke-width="2" stroke-linecap="round" opacity=".85"/></svg>
+      <span><b>Underwriting Submission Intelligence</b><small>A Snowflake example · synthetic data</small></span>
+    </a>
+    <nav aria-label="Page"><a href="#walkthrough">Walkthrough</a><a href="#how-it-works">How it works</a><a href="#get-started">Get started</a><a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">Repository</a></nav>
   </div>
 </header>
 
 <main>
-<div class="wrap hero" id="problem">
-  <div class="eyebrow">Insurance · Underwriting</div>
-  <h1>Clear the submission backlog by working the best-fit risks first</h1>
-  <p class="lede">Commercial underwriters receive far more broker submissions than they can quote. Each one arrives as a packet of PDFs and an email, and most queues are worked first in, first out. That means a clean, in-appetite risk from a top broker can wait behind incomplete or out-of-appetite ones. This example reads every packet in Snowflake, extracts the fields and loss runs, checks them against the appetite guide, measures coastal concentration against the existing book, and ranks the queue by fit. The underwriter still makes every decision.</p>
-  <div class="cta">
-    <a class="btn primary" href="try/">Try the example in your browser</a>
-    <a class="btn" href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">View the repository</a>
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <div class="label">Insurance · Commercial property underwriting</div>
+      <h1>Stop working the submission pile in the order it arrived. <em>Work the best fit first.</em></h1>
+      <p class="lede">Underwriters get more broker submissions than they can quote, and most queues run first in, first out. This example reads every broker packet in Snowflake, extracts the fields and loss runs, checks appetite and completeness, measures coastal concentration, and ranks the docket by fit. The underwriter still makes every decision.</p>
+      <div class="cta"><a class="btn primary" href="try/">Try the example in your browser →</a><a class="btn" href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">View the repository</a></div>
+      <dl class="facts">
+        <div><dt class="label">No-account mode</dt><dd>Runs in the browser on synthetic data</dd></div>
+        <div><dt class="label">Live mode</dt><dd>Any edition; Cortex AI, Search, Analyst, Agents</dd></div>
+        <div><dt class="label">Setup time</dt><dd>About 3 minutes (186 s measured)</dd></div>
+        <div><dt class="label">Cost</dt><dd>About 0.1 warehouse credits (estimated), plus AI usage</dd></div>
+      </dl>
+    </div>
+    <div class="docket" role="img" aria-label="Illustration of the ranked docket: Kelridge Office Partners ranks first by fit score 99 even though it is 130th in first-in, first-out order">
+      <header><span class="stamp">Morning docket · 18 Nov 2026</span><span class="label">136 open</span></header>
+      <ol>
+        <li class="top"><span class="mono">1</span><span class="who"><b>Kelridge Office Partners <span class="pill p-sea">In appetite</span></b><span>Charlotte, NC · Office · FIFO #130</span></span><span class="score">99</span></li>
+        <li><span class="mono">2</span><span class="who"><b>Lanmore Fabrication <span class="pill p-sea">In appetite</span></b><span>Raleigh, NC · Light manufacturing</span></span><span class="score">99</span></li>
+        <li><span class="mono">…</span><span class="who"><b>Marquette Shores Hospitality <span class="pill p-amber">Refer</span></b><span>5 Gulf coast hotels · +$43.9M coastal TIV</span></span><span class="score">63</span></li>
+        <li><span class="mono">…</span><span class="who"><b>Tollbridge Kitchen Co <span class="pill p-amber">Missing 1</span></b><span>Tampa, FL · no loss runs</span></span><span class="score">52</span></li>
+        <li><span class="mono">…</span><span class="who"><b>Gravelin Distribution <span class="pill p-rust">Out</span></b><span>“Warehouse” storing fireworks</span></span><span class="score">15</span></li>
+      </ol>
+    </div>
   </div>
-  <div class="facts">
-    <div class="fact"><b>No-account mode</b>Runs in the browser on synthetic data; nothing to install</div>
-    <div class="fact"><b>Live mode</b>Any edition; Cortex AI functions, Search, Analyst, Agents</div>
-    <div class="fact"><b>Setup time</b>About 3 minutes in one Snowsight worksheet</div>
-    <div class="fact"><b>Measured cost</b>About 0.1 warehouse credits on XSMALL for setup (estimated from run time), plus AI usage billed by page and token</div>
-  </div>
-  <p class="note"><strong>Synthetic data, illustrative logic.</strong> Every insured, broker, carrier, and person is fictional, and the forms are synthetic layouts. This is not underwriting, regulatory, or compliance advice, and it isn't a production system. Scores and drafts are suggestions for an underwriter to review.</p>
 </div>
+
+<div class="wrap"><p class="note"><strong>Synthetic data, illustrative logic.</strong> Quorvane, the desk in this example, and every insured, broker, carrier and person are fictional; the forms are synthetic layouts. This is not underwriting, regulatory, or compliance advice and not a production system. Scores and drafts are suggestions for an underwriter to review.</p></div>
 
 <section>
   <div class="wrap">
-    <h2>Who it's for</h2>
-    <div class="grid3">
-      <div class="card"><h3>Commercial underwriters</h3><p>A queue ranked by fit, each submission's fields already extracted with the source highlighted, and a memo draft to edit.</p></div>
-      <div class="card"><h3>Underwriting managers</h3><p>See what's waiting, what's incomplete, and what's out of appetite, and ask questions about the pipeline in plain language.</p></div>
+    <div class="label">Who it's for</div>
+    <h2>One docket for the desk, the manager and cat management</h2>
+    <div class="who-grid">
+      <div class="card"><h3>Commercial underwriters</h3><p>A docket ranked by fit, each file's fields already extracted with the source highlighted, and a memo draft to edit.</p></div>
+      <div class="card"><h3>Underwriting managers</h3><p>See what's waiting, what's incomplete and what's out of appetite, and ask questions about the pipeline in plain language.</p></div>
       <div class="card"><h3>Portfolio and cat management</h3><p>See how a new schedule of locations adds to coastal concentration before it's quoted.</p></div>
     </div>
   </div>
@@ -120,120 +169,107 @@ footer { border-top: 1px solid var(--border); padding: 28px 0 44px; color: var(-
 
 <section id="walkthrough">
   <div class="wrap">
-    <h2>Walkthrough</h2>
-    <p class="sub">Screenshots of the running app on its synthetic data set: 150 broker submissions to the fictional Northwind Specialty, 136 of them still open on the business date.</p>
+    <div class="label">Walkthrough</div>
+    <h2>Four files from this morning's docket</h2>
+    <p class="intro">Screenshots of the running app on its synthetic data set: 150 broker submissions to the fictional Quorvane desk, 136 still open on the business date.</p>
 
-    <figure>
-      <div class="step">1 · The queue, ranked by fit</div>
-      <img src="images/01-queue.png" alt="Submission queue: KPIs for open submissions, average wait, in-appetite share, incomplete and out-of-appetite counts, a daily volume chart, and the queue ranked by fit score with Kelridge Office Partners first, FIFO position 130" loading="lazy">
-      <figcaption><span class="cap">AI_EXTRACT · AI_CLASSIFY · SQL scoring view</span>Every submission gets a fit score from appetite, completeness, broker value, loss history, and concentration. On this synthetic data set, Kelridge Office Partners, a clean office risk from a top broker, ranks first even though it's 130th in first-in, first-out order.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/01-queue.png" width="2000" height="1250" loading="lazy" alt="Docket screen: six KPI tiles (136 open, 15.7 average days waiting, 35% in appetite, 1 incomplete, 17 out of appetite, $1.28B TIV), a bar chart of daily arrivals, an appetite donut, and the ranked list with Kelridge Office Partners first at fit 99 and its fit breakdown in the preview pane"><figcaption>Powered by AI_EXTRACT, AI_CLASSIFY and a SQL scoring view.</figcaption></figure>
+      <div><span class="num">01</span><h3>The docket, ranked by fit</h3><p>Every submission gets a fit score from appetite, completeness, broker value, loss history and concentration. On this synthetic data set, Kelridge Office Partners, a clean office risk from a top broker, ranks first even though it is 130th in first-in, first-out order.</p><span class="cap">AI_EXTRACT · AI_CLASSIFY · SQL view</span></div>
+    </div>
 
-    <figure>
-      <div class="step">2 · A hidden out-of-appetite class</div>
-      <img src="images/02-hidden-class.png" alt="Gravelin Distribution detail: the application page with the declared business type highlighted, extracted fields, and the governing class FIRE from AI_CLASSIFY, marked out of appetite" loading="lazy">
-      <figcaption><span class="cap">AI_PARSE_DOCUMENT · AI_EXTRACT citations · AI_CLASSIFY</span>The application declares a warehouse, but the operations description mentions seasonal fireworks storage. AI_CLASSIFY assigns the fireworks class, which the appetite guide puts out of appetite. Click any extracted field to see where AI_EXTRACT found it on the page.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/02-hidden-class.png" width="2000" height="1250" loading="lazy" alt="Submission file for Gravelin Distribution: the application page with the declared business type highlighted, extracted fields, and the nature of operations showing governing class FIRE, fireworks, while the application declares WHSE; fit score capped at 15"><figcaption>Powered by AI_PARSE_DOCUMENT, AI_EXTRACT citations and AI_CLASSIFY.</figcaption></figure>
+      <div><span class="num">02</span><h3>An out-of-appetite class hidden in the description</h3><p>The application declares a warehouse, but the operations description mentions seasonal fireworks storage. AI_CLASSIFY assigns the fireworks class, which the appetite guide puts out of appetite. Pick any extracted field to see where AI_EXTRACT found it on the page.</p><span class="cap">AI_PARSE_DOCUMENT · AI_EXTRACT · AI_CLASSIFY</span></div>
+    </div>
 
-    <figure>
-      <div class="step">3 · Loss runs and an underwriting memo draft</div>
-      <img src="images/03-memo.png" alt="Marquette Shores Hospitality: appetite check with coastal referral reasons and appetite guide passages, a five-year loss chart, and an AI-drafted underwriting memo labeled Sample AI response" loading="lazy">
-      <figcaption><span class="cap">AI_EXTRACT table extraction · Cortex Search · AI_COMPLETE</span>The loss run table is extracted from the PDF and charted. Cortex Search finds the relevant appetite guide rules, and AI_COMPLETE drafts a memo that cites them for the underwriter to edit.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/03-memo.png" width="2000" height="1250" loading="lazy" alt="Underwriting memo draft for Marquette Shores Hospitality labeled Sample AI response, citing appetite rules AG-013 and AG-007, with source chips for AI_COMPLETE, Cortex Search, AI_EXTRACT fields and SUBMISSION_SCORES, next to the fit score of 63"><figcaption>Powered by AI_EXTRACT table extraction, Cortex Search and AI_COMPLETE.</figcaption></figure>
+      <div><span class="num">03</span><h3>Loss runs and a memo draft that cites the guide</h3><p>The loss-run table is extracted from the PDF and charted. Cortex Search finds the appetite rules that apply, and AI_COMPLETE drafts a memo that cites them, revealed as it is written, for the underwriter to edit.</p><span class="cap">AI_EXTRACT · Cortex Search · AI_COMPLETE</span></div>
+    </div>
 
-    <figure>
-      <div class="step">4 · Request what's missing</div>
-      <img src="images/04-request-info.png" alt="Tollbridge Kitchen Co: no loss runs received, and an AI-drafted, editable email to the broker requesting five years of loss runs" loading="lazy">
-      <figcaption><span class="cap">AI_COMPLETE · decisions table</span>This restaurant submission arrived without loss runs. The app drafts a specific request to the broker, the underwriter edits it, and the decision is recorded. Decline with a reason and move to quote work the same way.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/04-request-info.png" width="2000" height="1250" loading="lazy" alt="Submission file for Tollbridge Kitchen Co: missing loss runs flagged in the appetite check, an empty loss-history panel, and an editable AI-drafted broker email labeled Sample AI response in the decision rail with a Record request button"><figcaption>Powered by AI_COMPLETE and the APP.DECISIONS table.</figcaption></figure>
+      <div><span class="num">04</span><h3>Request what's missing, in one click</h3><p>This restaurant submission arrived without loss runs. The app drafts a specific request to the broker, the underwriter edits it, and the decision is recorded. Decline with a reason and move to quote work the same way.</p><span class="cap">AI_COMPLETE · decisions table</span></div>
+    </div>
 
-    <figure>
-      <div class="step">5 · Portfolio fit</div>
-      <img src="images/05-portfolio-fit.png" alt="Portfolio fit for Marquette Shores Hospitality: a map of existing exposure by H3 cell along the Florida Gulf coast with five new hotel locations, KPIs for coastal TIV added, and a table of distance to coast and portfolio TIV within 25 km" loading="lazy">
-      <figcaption><span class="cap">Geospatial: ST_DISTANCE, ST_DWITHIN, H3</span>Five beachfront hotels plotted against the existing book. Snowflake measures each location's distance to the coast and the portfolio TIV within 25 km, and shows how binding the risk changes the coastal share of total insured value.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/05-portfolio-fit.png" width="2000" height="1250" loading="lazy" alt="Portfolio fit for Marquette Shores Hospitality: KPIs of $52.5M submission TIV, $43.9M coastal TIV added, $1.12B book TIV within 25 km, coastal share 45.3% if bound; a map with numbered location pins over existing exposure dots along the Gulf coast and a location table"><figcaption>Powered by Snowflake geospatial functions (ST_DISTANCE, ST_DWITHIN) and H3.</figcaption></figure>
+      <div><span class="num">05</span><h3>Portfolio fit before you quote</h3><p>Five beachfront hotels plotted against the existing book. Snowflake measures each location's distance to the coast and the book's TIV within 25 km, and shows how binding the risk changes the coastal share of total insured value.</p><span class="cap">Geospatial · H3</span></div>
+    </div>
 
-    <figure>
-      <div class="step">6 · Ask the pipeline</div>
-      <img src="images/06-ask.png" alt="Ask screen: the question 'Show restaurants in Florida with TIV over 5 million submitted this month' answered with 8 restaurants, a results table, and the generated SQL" loading="lazy">
-      <figcaption><span class="cap">Cortex Agent · Cortex Analyst · semantic view</span>A plain-language question becomes SQL on a semantic view of the pipeline. On this data set it returns 8 Florida restaurants above $5M TIV received in November, with their fit scores and appetite.</figcaption>
-    </figure>
+    <div class="step">
+      <figure><img src="images/06-ask.png" width="2000" height="1250" loading="lazy" alt="Ask the desk: the question about Florida restaurants with TIV over $5M this month, answered with a summary, a result table of 8 restaurants with fit scores and appetite, and source chips, labeled Sample AI response"><figcaption>Powered by Cortex Agents, Cortex Analyst and a semantic view.</figcaption></figure>
+      <div><span class="num">06</span><h3>Ask the pipeline in plain language</h3><p>A question becomes SQL on a semantic view of the pipeline. On this data set it returns 8 Florida restaurants above $5M TIV received in November, with their fit scores and appetite.</p><span class="cap">Cortex Agents · Cortex Analyst</span></div>
+    </div>
   </div>
 </section>
 
 <section id="how-it-works">
   <div class="wrap">
-    <h2>How it works</h2>
-    <p class="sub">Each capability below ran in live mode in a Snowflake account in November 2026.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Step</th><th>Snowflake capability</th><th>What it does here</th></tr></thead>
-        <tbody>
-          <tr><td>Ingest</td><td><a href="https://docs.snowflake.com/en/developer-guide/git/git-overview">Git repository clone</a>, stage with directory table</td><td>Loads the synthetic PDFs and CSVs from the public repository. No upload step.</td></tr>
-          <tr><td>Read documents</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_parse_document">AI_PARSE_DOCUMENT</a></td><td>Full text of every application.</td></tr>
-          <tr><td>Extract fields</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_extract">AI_EXTRACT</a> with citations</td><td>Thirteen application fields, each with the page box where it was found. Table extraction reads the five-year loss runs.</td></tr>
-          <tr><td>Find the class</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_classify">AI_CLASSIFY</a></td><td>Assigns the governing class code from the operations description, so a hazardous activity can't hide behind the declared class.</td></tr>
-          <tr><td>Appetite and fit</td><td>SQL view</td><td>Class, territory, TIV, loss, and completeness rules, plus the five-part fit score.</td></tr>
-          <tr><td>Concentration</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions-geospatial">Geospatial functions</a> and H3</td><td>Distance to coast, existing portfolio TIV within 25 km, and exposure by H3 cell.</td></tr>
-          <tr><td>Appetite guide</td><td><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview">Cortex Search</a></td><td>Finds the guide passages that apply to each submission.</td></tr>
-          <tr><td>Memo and broker email</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_complete">AI_COMPLETE</a></td><td>Drafts from the extracted facts and guide passages. Drafts are saved for review.</td></tr>
-          <tr><td>Ask</td><td><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents">Cortex Agents</a>, <a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst">Cortex Analyst</a>, <a href="https://docs.snowflake.com/en/user-guide/views-semantic/overview">semantic view</a></td><td>Turns questions about the pipeline into SQL and answers them.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="sub" style="margin-top:18px">On this synthetic data set, AI_EXTRACT matched the generator's values for all 150 insured names and total insured values, and for all 745 loss-run rows. Real broker documents are messier; measure accuracy on your own keyed sample before relying on it.</p>
+    <div class="label">How it works</div>
+    <h2>Every step runs in Snowflake</h2>
+    <p class="intro">Each capability below ran in Live mode in a Snowflake account in November 2026.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Step</th><th>Snowflake capability</th><th>What it does here</th></tr></thead>
+      <tbody>
+        <tr><td>Ingest</td><td><a href="https://docs.snowflake.com/en/developer-guide/git/git-overview">Git repository clone</a>, stage</td><td>Loads the synthetic PDFs and CSVs from the public repository. No upload step.</td></tr>
+        <tr><td>Read documents</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_parse_document">AI_PARSE_DOCUMENT</a></td><td>Full text of every application (OCR mode).</td></tr>
+        <tr><td>Extract fields</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_extract">AI_EXTRACT</a> with citations</td><td>Application fields, each with the page box where it was found. Table extraction reads the five-year loss runs.</td></tr>
+        <tr><td>Find the class</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_classify">AI_CLASSIFY</a></td><td>Assigns the governing class from the operations description, so a hazardous activity can't hide behind the declared class.</td></tr>
+        <tr><td>Appetite and fit</td><td>SQL view</td><td>Class, territory, TIV, loss and completeness rules, plus the five-part fit score.</td></tr>
+        <tr><td>Concentration</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions-geospatial">Geospatial functions</a> and H3</td><td>Distance to coast, book TIV within 25 km, exposure by H3 cell.</td></tr>
+        <tr><td>Appetite guide</td><td><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview">Cortex Search</a></td><td>Finds the guide passages that apply to each submission.</td></tr>
+        <tr><td>Memo and email</td><td><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_complete">AI_COMPLETE</a></td><td>Drafts from the extracted facts and guide passages, saved for review.</td></tr>
+        <tr><td>Ask</td><td><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents">Cortex Agents</a>, <a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst">Cortex Analyst</a>, <a href="https://docs.snowflake.com/en/user-guide/views-semantic/overview">semantic view</a></td><td>Turns questions about the pipeline into SQL and answers them.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="intro" style="margin-top:18px">On this synthetic data set, AI_EXTRACT matched the generator's values for all 150 insured names and total insured values, and for all 745 loss-run rows. Real broker documents are messier; measure accuracy on your own keyed sample before relying on it.</p>
   </div>
 </section>
 
 <section id="get-started">
   <div class="wrap">
-    <h2>Get started</h2>
+    <div class="label">Get started</div>
+    <h2>Try it now, then run it in your account</h2>
     <div class="two">
-      <div>
-        <h3>No account</h3>
-        <p class="sub" style="margin-bottom:12px">Open the <a href="try/">hosted example</a>, or run it locally with Node.js 20.19 or later:</p>
-<pre><code>git clone https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence.git
+      <div class="card"><h3>No account</h3><p>Open the <a href="try/">hosted example</a>, or run it locally with Node.js 20.19 or later:</p>
+<pre>git clone https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence.git
 cd sfguide-underwriting-submission-intelligence
 npm install
-npm run dev</code></pre>
-        <p class="sub">AI answers in this mode were recorded from a live run and are labeled <strong>Sample AI response</strong>.</p>
-      </div>
-      <div>
-        <h3>Your Snowflake account</h3>
-        <ol>
-          <li>Run <a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence/blob/main/sql/setup.sql"><code>sql/setup.sql</code></a> in a Snowsight worksheet. It creates a dedicated database, an XSMALL warehouse, and a least-privilege role, loads the synthetic files from the repository, and runs the document AI.</li>
+npm run dev</pre>
+        <p>AI drafts in this mode were recorded from a live run and are labeled <strong>Sample AI response</strong>.</p></div>
+      <div class="card"><h3>Your Snowflake account</h3>
+        <ol class="steps">
+          <li>Run <a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence/blob/main/sql/setup.sql"><code>sql/setup.sql</code></a> in a Snowsight worksheet. It creates a dedicated database, an XSMALL warehouse and a least-privilege role, loads the synthetic files and runs the document AI.</li>
           <li>Register a key pair for your user and copy <code>.env.example</code> to <code>.env.local</code>.</li>
-          <li>Run <code>npm run dev</code>. Each screen shows the live role and measured latency.</li>
+          <li>Run <code>npm run dev</code> and switch to Live. Each screen shows the live role and measured latency.</li>
           <li>When you're done, run <code>sql/cleanup.sql</code>.</li>
         </ol>
-        <p class="sub">The README lists every object created, the expected cost, and the full steps.</p>
-      </div>
+        <p>The README lists every object created, the expected cost and the full steps.</p></div>
     </div>
-    <h3 style="margin-top:20px">Customize with Cortex Code</h3>
-    <ul>
-      <li>"Load my appetite guide and turn it into rules plus a searchable index. Show me ambiguous rules."</li>
-      <li>"Extract 30 of my sample submissions and measure field accuracy against my keyed data."</li>
-      <li>"Weight the fit score toward my target classes and explain each component."</li>
-    </ul>
+    <h3 style="margin:32px 0 12px">Customize with Cortex Code</h3>
+    <blockquote>"Load my appetite guide and turn it into rules plus a searchable index. Show me ambiguous rules."</blockquote>
+    <blockquote>"Extract 30 of my sample submissions and measure field accuracy against my keyed data."</blockquote>
+    <blockquote>"Weight the fit score toward my target classes and explain each component."</blockquote>
   </div>
 </section>
 
-<section id="limits">
+<section>
   <div class="wrap">
-    <h2>Limits and disclaimer</h2>
-    <ul>
+    <div class="label">Limits and disclaimer</div>
+    <h2>Read this before you adapt it</h2>
+    <ul class="intro">
       <li>The fit score and appetite rules are illustrative weights, not a pricing or rating model.</li>
       <li>The documents are clean, one-page synthetic layouts. Scanned or handwritten submissions need more review.</li>
-      <li>The coastline is a simplified line of 39 points, and the "map" is a plain longitude/latitude plot with no base map.</li>
+      <li>The coastline is a simplified line of 39 points, and the map is a plain longitude/latitude plot with no base map.</li>
       <li>Results such as "ranks first" and "8 restaurants" are planted stories on this synthetic data set.</li>
     </ul>
-    <p class="note">This is an illustrative example provided as is. It is not an official Snowflake product, it isn't supported by Snowflake Support, and it contains no customer data. Apache 2.0 license.</p>
+    <p class="intro">This is an illustrative example provided as is. It is not an official Snowflake product, it isn't supported by Snowflake Support, and it contains no customer data. Apache 2.0 license.</p>
   </div>
 </section>
 </main>
 
-<footer>
-  <div class="wrap">Owner: Oz Oral · Last reviewed: November 2026 · <a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">Repository</a> · <a href="https://docs.snowflake.com/">Snowflake documentation</a></div>
-</footer>
+<footer><div class="wrap">Owner: Oz Oral · Last reviewed: November 2026 · <a href="https://github.com/sfc-gh-ooral/sfguide-underwriting-submission-intelligence">Repository</a> · <a href="https://docs.snowflake.com/">Snowflake documentation</a> · Fonts: IBM Plex, <a href="fonts/OFL.txt">SIL Open Font License</a></div></footer>
 </body>
 </html>
