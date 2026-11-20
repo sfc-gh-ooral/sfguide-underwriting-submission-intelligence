@@ -1,0 +1,85 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Type /Pages /Kids [5 0 R] /Count 1 >>
+endobj
+4 0 obj
+<< /Length 2170 >>
+stream
+BT /F2 14 Tf 40 750 Td (LOSS RUN REPORT - CURRENTLY VALUED) Tj ET
+BT /F1 10 Tf 40 730 Td (Insured: Westrow Electric) Tj ET
+BT /F1 9 Tf 40 716 Td (Valued as of: 2026-10-31   Reference: SUB-1059) Tj ET
+BT /F2 10 Tf 40 690 Td (Five-year loss history) Tj ET
+BT /F2 8 Tf 44 670 Td (Policy Year) Tj ET
+BT /F2 8 Tf 110 670 Td (Carrier) Tj ET
+BT /F2 8 Tf 250 670 Td (Claims) Tj ET
+BT /F2 8 Tf 310 670 Td (Incurred) Tj ET
+BT /F2 8 Tf 390 670 Td (Paid) Tj ET
+BT /F2 8 Tf 470 670 Td (Open) Tj ET
+BT /F2 8 Tf 520 670 Td (Largest Loss) Tj ET
+40 665 m 590 665 l S
+BT /F1 9 Tf 44 651 Td (2021) Tj ET
+BT /F1 9 Tf 110 651 Td (Strathmoor Indemnity) Tj ET
+BT /F1 9 Tf 250 651 Td (1) Tj ET
+BT /F1 9 Tf 310 651 Td ($28,400) Tj ET
+BT /F1 9 Tf 390 651 Td ($26,700) Tj ET
+BT /F1 9 Tf 470 651 Td (0) Tj ET
+BT /F1 7 Tf 520 651 Td (Vehicle into storefront) Tj ET
+BT /F1 9 Tf 44 635 Td (2022) Tj ET
+BT /F1 9 Tf 110 635 Td (Strathmoor Indemnity) Tj ET
+BT /F1 9 Tf 250 635 Td (1) Tj ET
+BT /F1 9 Tf 310 635 Td ($67,400) Tj ET
+BT /F1 9 Tf 390 635 Td ($55,100) Tj ET
+BT /F1 9 Tf 470 635 Td (0) Tj ET
+BT /F1 7 Tf 520 635 Td (Vehicle into storefront) Tj ET
+BT /F1 9 Tf 44 619 Td (2023) Tj ET
+BT /F1 9 Tf 110 619 Td (Strathmoor Indemnity) Tj ET
+BT /F1 9 Tf 250 619 Td (3) Tj ET
+BT /F1 9 Tf 310 619 Td ($137,300) Tj ET
+BT /F1 9 Tf 390 619 Td ($129,000) Tj ET
+BT /F1 9 Tf 470 619 Td (0) Tj ET
+BT /F1 7 Tf 520 619 Td (Wind damage to roof) Tj ET
+BT /F1 9 Tf 44 603 Td (2024) Tj ET
+BT /F1 9 Tf 110 603 Td (Lorvane Insurance Co) Tj ET
+BT /F1 9 Tf 250 603 Td (3) Tj ET
+BT /F1 9 Tf 310 603 Td ($196,400) Tj ET
+BT /F1 9 Tf 390 603 Td ($149,400) Tj ET
+BT /F1 9 Tf 470 603 Td (0) Tj ET
+BT /F1 7 Tf 520 603 Td (Theft) Tj ET
+BT /F1 9 Tf 44 587 Td (2025) Tj ET
+BT /F1 9 Tf 110 587 Td (Keystrand Casualty) Tj ET
+BT /F1 9 Tf 250 587 Td (3) Tj ET
+BT /F1 9 Tf 310 587 Td ($90,400) Tj ET
+BT /F1 9 Tf 390 587 Td ($64,500) Tj ET
+BT /F1 9 Tf 470 587 Td (0) Tj ET
+BT /F1 7 Tf 520 587 Td (Wind damage to roof) Tj ET
+40 577 m 590 577 l S
+BT /F2 9 Tf 44 563 Td (Totals: 11 claims, $519,900 incurred, $424,700 paid) Tj ET
+BT /F1 7 Tf 40 60 Td (Synthetic loss run generated for a software example. Not an actual carrier report.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 3 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Type /Catalog /Pages 3 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000079 00000 n 
+0000000154 00000 n 
+0000000211 00000 n 
+0000002433 00000 n 
+0000002569 00000 n 
+trailer
+<< /Size 7 /Root 6 0 R >>
+startxref
+2618
+%%EOF
