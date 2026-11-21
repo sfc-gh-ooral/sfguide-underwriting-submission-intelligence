@@ -22,6 +22,7 @@ async function call(op, ...args) {
     await new Promise((r) => setTimeout(r, 2000 * attempt));
   }
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- drop live-only fields from the sample snapshot
 const strip = (x) => { const { source, role, ...rest } = x; return { ...rest, source: 'mock' }; };
 const write = (path, obj) => writeFileSync(`${OUT}/${path}`, JSON.stringify(obj));
 async function pool(items, n, fn) {

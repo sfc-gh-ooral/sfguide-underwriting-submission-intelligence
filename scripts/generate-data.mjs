@@ -124,7 +124,7 @@ function makeSubmission(i, o = {}) {
   const cls = o.cls ?? pick(CLASS_MIX);
   const c = CLASS[cls];
   const city = o.city ?? (cls === 'REST' && rnd() < 0.35 ? pick(FL_REST_CITIES) : pick(CITIES)[0]);
-  const [, state, lat, lon] = CITY[city];
+  const [, state] = CITY[city];
   const nLoc = o.nLoc ?? (cls === 'REST' || cls === 'RETL' ? int(1, 4) : int(1, 3));
   const id = `SUB-${String(1000 + i).padStart(4, '0')}`;
   const broker = o.broker ?? pick(brokers);

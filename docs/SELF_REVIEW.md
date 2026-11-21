@@ -54,3 +54,9 @@ Checked against the Snow Packs contribution guide and the pack build checklist. 
 ## Skipped or open
 
 - `npm run lint` fails on the ESLint configuration (pre-existing, unrelated to this change); `tsc --noEmit` passes.
+
+## Polish pass, November 20, 2026
+
+- Fresh clone, `npm ci`, `npm run dev`: pass (home page returns 200).
+- Dark mode: renders with the dark theme, no console errors.
+- `npm run lint` failed from a fresh clone (ESLint 9 found no `eslint.config.*`). Added the flat config with the Next core-web-vitals and TypeScript presets (the two React Compiler advisory rules off, as the app does not use the compiler) and fixed what it reported; lint and `tsc --noEmit` now pass.
